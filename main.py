@@ -23,7 +23,7 @@ from QLearningAgent import QLearningAgent as QLearner  # Tabular
 #from DQNLearningAgent import DQNLearningAgent as QLearner # Deep with GPU
 
 MAX_EPISODES = 40000 # Succ: [9183, 31481, 32276, 32978, 34448]
-MAX_EPISODES_DEEP = 30000 #  
+MAX_EPISODES_DEEP = 30000 # Succ: []
 
 os.chdir('/Users/farismismar/Desktop/DRL')
 
@@ -43,8 +43,9 @@ def run_agent_deep(env, plotting=False):
     
     losses = []
     future_rewards = []
+    replayed_episodes = []
     
-    batch_size = 2
+    batch_size = 32
 
     print('Ep.         | TS | Recv. SINR (sv) | Recv. SINR (int) | Serv. Tx Pwr | Int. Tx Pwr')
     print('--'*44)
@@ -63,8 +64,6 @@ def run_agent_deep(env, plotting=False):
         serving_tx_power_progress = []
         interfering_tx_power_progress = []
         
-        q = []
-        l = []
         for timestep_index in range(max_timesteps_per_episode):
             print('{}/{} | {} | '.format(episode_index, max_episodes_to_run, timestep_index), end='')
             # Perform the power control action and observe the new state.
@@ -102,16 +101,12 @@ def run_agent_deep(env, plotting=False):
             interfering_tx_power_progress.append(env.interfering_transmit_power_dBm)
             
             if len(agent.memory) > batch_size:
-                qt,loss = agent.replay(batch_size)
-                q.append(qt)
-                l.append(loss)
+                agent.replay(batch_size)
                 
-          #  print('At t = {}, action played was {} with reward {}.'.format(timestep_index, action, reward))
+            replayed_episodes.append(episode_index)
             
-#        q, l = agent.get_performance()
-        losses.append(np.mean(l))
-        future_rewards.append(np.mean(q))
-        
+          #  print('At t = {}, action played was {} with reward {}.'.format(timestep_index, action, reward))
+                    
         if (successful):
             episode_successful.append(episode_index)
 
@@ -122,17 +117,21 @@ def run_agent_deep(env, plotting=False):
 #        print('Interfering BS transmit power progress')
 #        print(interfering_tx_power_progress)
         
+        # Get the performance of the episode z
+        q_z, l_z = agent.get_performance()
+        losses.append(np.mean(l_z)) # average across the batch size
+        future_rewards.append(np.mean(q_z))
+
+#        print(losses) # is equal to the number of episodes + 1
+#        print(future_rewards)
+ 
         # Plot the episode...
-        if (plotting and episode_index in [4498]):
+        if (plotting) :# and episode_index in [4498]):
             plot_measurements(sinr_progress, sinr_ue2_progress, serving_tx_power_progress, interfering_tx_power_progress, max_timesteps_per_episode, episode_index, max_episodes_to_run)
             plot_actions(actions, max_timesteps_per_episode, episode_index, max_episodes_to_run)
-  
-#        if (plotting):
-    future_rewards = np.hstack(future_rewards)
-    losses = np.hstack(losses)
     
-    plot_performance_function(future_rewards, max_episodes_to_run)
-    plot_performance_function(losses, max_episodes_to_run, True)
+    plot_performance_function_deep(losses, is_loss=True)
+    plot_performance_function_deep(future_rewards, is_loss=False)
               
     if (len(episode_successful) == 0):
         print("Goal cannot be reached after {} episodes.  Try to increase maximum episodes.".format(max_episodes_to_run))
@@ -213,8 +212,7 @@ def run_agent(env, plotting=False):
             plot_measurements(sinr_progress, sinr_ue2_progress, serving_tx_power_progress, interfering_tx_power_progress, max_timesteps_per_episode, episode_index, max_episodes_to_run)
             plot_actions(actions, max_timesteps_per_episode, episode_index, max_episodes_to_run)
   
-#    if (plotting):
-    plot_performance_function(Q_values, max_episodes_to_run)
+    plot_performance_function(Q_values)
               
     if (len(episode_successful) == 0):
         print("Goal cannot be reached after {} episodes.  Try to increase maximum episodes.".format(max_episodes_to_run))
@@ -292,22 +290,38 @@ def plot_actions(actions, max_timesteps_per_episode, episode_index, max_episodes
     plt.close(fig)
     return
 
-def plot_performance_function(values, max_episodes_to_run, is_deep=False):
+def plot_performance_function_deep(values, is_loss=False):
 #    print(values)
-    title =  r'\bf Episode Loss' if is_deep else r'\bf Average $Q$'
-    y_label = r'\bf Expected Loss' if is_deep else 'Expected Action-Value $Q$'
-    filename = 'losses.pdf' if is_deep else 'q_function.pdf'
+    title = r'\bf Average $Q$' if not is_loss else r'\bf Episode Loss' 
+    y_label = 'Expected Action-Value $Q$' if not is_loss else r'\bf Expected Loss' 
+    filename = 'q_function.pdf' if not is_loss else 'losses.pdf'
     fig = plt.figure(figsize=(7,5))
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
     plt.title(title)
     plt.xlabel('Episode')
     plt.ylabel(y_label)
-    if is_deep:
-        plt.step(np.arange(MAX_EPISODES_DEEP+1), values, color='k')
-        plt.plot(values, linestyle='-', color='k')
-    else:
-        plt.plot(values, color='k')
+   # plt.step(episodes, values, color='k')
+    plt.plot(np.arange(MAX_EPISODES_DEEP+1), values, linestyle='-', color='k')
+    # plt.plot(values, linestyle='-', color='k')
+    plt.grid(True)
+    plt.savefig('figures/{}'.format(filename), format="pdf")
+    plt.show(block=True)
+    plt.close(fig)
+
+
+def plot_performance_function(values):
+#    print(values)
+    title = r'\bf Average $Q$'
+    y_label = 'Expected Action-Value $Q$'
+    filename = 'q_function.pdf'
+    fig = plt.figure(figsize=(7,5))
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    plt.title(title)
+    plt.xlabel('Episode')
+    plt.ylabel(y_label)
+    plt.plot(np.arange(MAX_EPISODES+1), values, color='k')
     plt.grid(True)
     plt.savefig('figures/{}'.format(filename), format="pdf")
     plt.show(block=True)
@@ -315,7 +329,7 @@ def plot_performance_function(values, max_episodes_to_run, is_deep=False):
     
 ########################################################################################
     
-#run_agent_deep(env, True)
+#run_agent_deep(env, False)
 run_agent(env, True)
 #run_agent_fpa(env, False)
 
