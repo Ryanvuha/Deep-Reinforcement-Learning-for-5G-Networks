@@ -19,11 +19,11 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as tick
 
 from environment import radio_environment
-from QLearningAgent import QLearningAgent as QLearner  # Tabular
-#from DQNLearningAgent import DQNLearningAgent as QLearner # Deep with GPU
+#from QLearningAgent import QLearningAgent as QLearner  # Tabular
+from DQNLearningAgent import DQNLearningAgent as QLearner # Deep with GPU
 
 MAX_EPISODES = 40000 # Succ: [9183, 31481, 32276, 32978, 34448]
-MAX_EPISODES_DEEP = 30000 # Succ: []
+#MAX_EPISODES_DEEP = 5000 # Succ: [1842, 2733, 3216]
 
 os.chdir('/Users/farismismar/Desktop/DRL')
 
@@ -126,7 +126,7 @@ def run_agent_deep(env, plotting=False):
 #        print(future_rewards)
  
         # Plot the episode...
-        if (plotting) :# and episode_index in [4498]):
+        if (plotting and episode_index in [1842, 2733, 3216]):
             plot_measurements(sinr_progress, sinr_ue2_progress, serving_tx_power_progress, interfering_tx_power_progress, max_timesteps_per_episode, episode_index, max_episodes_to_run)
             plot_actions(actions, max_timesteps_per_episode, episode_index, max_episodes_to_run)
     
@@ -329,7 +329,7 @@ def plot_performance_function(values):
     
 ########################################################################################
     
-#run_agent_deep(env, False)
+#run_agent_deep(env, True)
 run_agent(env, True)
 #run_agent_fpa(env, False)
 
