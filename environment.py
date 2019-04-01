@@ -23,6 +23,8 @@ import numpy as np
 # Transmit antenna isotropic gain
 # Antenna heights
 # Shadow fading margin
+# Number of ULA antenna elements
+# Oversampling factor
 
 class radio_environment:
     '''    
@@ -59,7 +61,13 @@ class radio_environment:
         self.min_sinr = -4 # in dB
         self.max_tx_power = 40 # in Watts
         self.max_tx_interference = 40 # in Watts
+        self.f_c = 2100e6 # Hz
+        
         self.num_actions = 8
+        
+        # for Beamforming
+        self.M_ULA = 64
+        self.k_oversampling = 2
         
         self.reward_min = -2
         self.reward_max = 100
@@ -192,6 +200,20 @@ class radio_environment:
             
         return np.array(self.state), reward, done, abort
 
+    def _compute_bf_vector(self, theta_n):
+        d = 1 # antenna spacing 
+        k = 1 # wavelength number
+        
+        exponent = 1j * k * d * math.cos(theta_n)
+        
+        f = 1. / math.sqrt(self.M_ULA) * np.exp(exponent * np.arange(self.M_ULA, dtype=complex))
+        
+        return f
+
+    # TODO: write this function
+    def _compute_channel(self):
+        return
+        
     def _compute_rf(self, x, y, pt_serving, pt_interferer):
         # Without loss of generality, the base station is at the origin
         # The interfering base station is x = cell_radius, y = 0
@@ -283,7 +305,7 @@ class radio_environment:
         return [received_power, interference_power, received_sinr]
     
     def _path_loss(self, x, y, x_bs=0, y_bs=0):
-        f_c = 2100e6 # Hz
+        f_c = self.f_c
         c = 3e8 # speed of light
         d = math.sqrt((x - x_bs)**2 + (y - y_bs)**2)
         h_B = 20
