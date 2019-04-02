@@ -202,10 +202,11 @@ class radio_environment:
         return np.array(self.state), reward, done, abort
 
     def _compute_bf_vector(self, theta_n):
-        # TODO: find d and k 
+        c = 3e8 # speed of light
+        wavelength = c / self.f_c
         
-        d = 1 # antenna spacing 
-        k = 1 # wavelength number
+        d = wavelength / 2. # antenna spacing 
+        k = 2. * math.pi / wavelength
         
         exponent = 1j * k * d * math.cos(theta_n)
         
@@ -213,9 +214,22 @@ class radio_environment:
         
         return f
 
-    # TODO: write this function
-    def _compute_channel(self):
-        return
+    # TODO: build the same function for the second user
+    def _compute_channel(self, Np, theta, x_ue, y_ue, x_bs, y_bs):
+        # Np is the number of paths p
+        # theta is the steering angle
+
+        path_loss = self._path_loss(x_ue, y_ue, x_bs, y_bs)
+
+        h = 0 + 0j
+        alpha = np.ones(Np) * self.prob_LOS * 1 + (1 - self.prob_LOS) * np.random.normal()
+        a_theta = self._compute_bf_vector(theta)
+        for p in np.arange(Np):
+            h += alpha[p] * a_theta.T
+        
+        h *= math.sqrt(self.M_ULA) / path_loss
+        
+        return h
         
     def _compute_rf(self, x, y, pt_serving, pt_interferer):
         # Without loss of generality, the base station is at the origin
@@ -246,13 +260,13 @@ class radio_environment:
         
         # Add Rayleigh fading and log-normal fading here.
         h = np.random.normal(size=2) / math.sqrt(2)
-        rayleigh_coeff = (1 - self.prob_LOS) * 10*np.log10(np.linalg.norm(h)) ** 2 + self.prob_LOS * 0.
+        rayleigh_coeff = (1 - self.prob_LOS) * 10*np.log10(np.linalg.norm(h) ** 2) + self.prob_LOS * 0.
         sf_margin = 2 # dB
         log_normal_fading = np.random.normal(0, sf_margin)
         received_power -= rayleigh_coeff + log_normal_fading
         
         h = np.random.normal(size=2) / math.sqrt(2)
-        rayleigh_coeff = (1 - self.prob_LOS) * 10*np.log10(np.linalg.norm(h)) ** 2 + self.prob_LOS * 0.
+        rayleigh_coeff = (1 - self.prob_LOS) * 10*np.log10(np.linalg.norm(h) ** 2) + self.prob_LOS * 0.
         sf_margin = 2 # dB
         log_normal_fading = np.random.normal(0, sf_margin)
         interference_plus_noise_power -= rayleigh_coeff + log_normal_fading
