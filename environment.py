@@ -221,7 +221,8 @@ class radio_environment:
 
         path_loss = self._path_loss(x_ue, y_ue, x_bs, y_bs)
 
-        h = 0 + 0j
+        # initialize the channel as a complex variable.
+        h = np.zeros(self.M_ULA, dtype=complex)
         alpha = np.ones(Np) * self.prob_LOS * 1 + (1 - self.prob_LOS) * np.random.normal()
         a_theta = self._compute_bf_vector(theta)
         for p in np.arange(Np):
