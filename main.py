@@ -14,20 +14,20 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0";   # My NVIDIA GTX 1080 Ti FE GPU
 
 import random
 import numpy as np
+from colorama import Fore, Back, Style
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tick
 
 from environment import radio_environment
-#from QLearningAgent import QLearningAgent as QLearner  # Tabular
-from DQNLearningAgent import DQNLearningAgent as QLearner # Deep with GPU
+from DQNLearningAgent import DQNLearningAgent as QLearner # Deep with GPU and CPU fallback
 
-MAX_EPISODES = 40000 # Succ: [9183, 31481, 32276, 32978, 34448]
-#MAX_EPISODES_DEEP = 5000 # Succ: [1842, 2733, 3216]
+MAX_EPISODES_DEEP = 7000
+# Succ: 
 
-os.chdir('/Users/farismismar/Desktop/DRL')
+os.chdir('/Users/farismismar/Desktop/deep')
 
-seed = 0 
+seed = 0
 
 random.seed(seed)
 np.random.seed(seed)
@@ -35,27 +35,32 @@ np.random.seed(seed)
 env = radio_environment(seed=seed)
 agent = QLearner(seed=seed)
 
-def run_agent_deep(env, plotting=False):
+radio_frame = 6
+    
+##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##
+
+def run_agent_deep(env, plotting=True):
     max_episodes_to_run = MAX_EPISODES_DEEP # needed to ensure epsilon decays to min
-    max_timesteps_per_episode = 20 # one AMR frame ms.
+    max_timesteps_per_episode = radio_frame
     successful = False
     episode_successful = [] # a list to save the good episodes
-    
+    Q_values = []   
     losses = []
-    future_rewards = []
-    replayed_episodes = []
     
     batch_size = 32
-
-    print('Ep.         | TS | Recv. SINR (sv) | Recv. SINR (int) | Serv. Tx Pwr | Int. Tx Pwr')
-    print('--'*44)
+    
+    max_episode = -1
+    max_reward = -np.inf
+    
+    print('Ep.         | TS | Recv. SINR (srv) | Recv. SINR (int) | Serv. Tx Pwr | Int. Tx Pwr | Reward ')
+    print('--'*54)
     
     # Implement the Q-learning algorithm
-    for episode_index in np.arange(max_episodes_to_run + 1):
+    for episode_index in 1 + np.arange(max_episodes_to_run):
         observation = env.reset()
-        observation = np.reshape(observation, [1, agent._state_size])
-        agent.begin_episode(observation)
-        reward = 0
+      #  observation = np.reshape(observation, [1, agent._state_size])
+        action = agent.begin_episode(observation)
+        total_reward = 0
         done = False
         actions = []
         
@@ -64,166 +69,153 @@ def run_agent_deep(env, plotting=False):
         serving_tx_power_progress = []
         interfering_tx_power_progress = []
         
+        episode_loss = []
+        episode_q = []
+
         for timestep_index in range(max_timesteps_per_episode):
-            print('{}/{} | {} | '.format(episode_index, max_episodes_to_run, timestep_index), end='')
-            # Perform the power control action and observe the new state.
-            action = agent.act(observation)
-            
             # Take a step
             next_observation, reward, done, abort = env.step(action)
-            next_observation = np.reshape(next_observation, [1, agent._state_size])
+            (_, _, _, _, pt_serving, pt_interferer, _, _) = next_observation
+                        
+            received_sinr = env.received_sinr_dB
+            received_ue2_sinr = env.received_ue2_sinr_dB
+            
+          #  next_observation = np.reshape(next_observation, [1, agent._state_size])
             
             # Remember the previous state, action, reward, and done
             agent.remember(observation, action, reward, next_observation, done)
+                           
+            # Sample replay batch from memory
+            sample_size = min(len(agent.memory), batch_size)
             
+            # Learn control policy
+            loss, q = agent.replay(sample_size)
+                      
+            episode_loss.append(loss)
+            episode_q.append(q)
+            
+            # If the episode has ended prematurely, penalize the agent by taking away the winning reward.
+  #          if done and timestep_index < max_timesteps_per_episode - 1:
+  #              reward -= env.reward_max
+ #               abort = True
+
             # make next_state the new current state for the next frame.
             observation = next_observation
-
-            # If the episode has ended prematurely, penalize the agent.
-            if done and timestep_index < max_timesteps_per_episode - 1:
-                reward = env.reward_min
+            total_reward += reward            
+                            
+            successful = (total_reward > 0) and (abort == False)
             
-            if reward < 0:
-                successful = False
-                
-            if abort == True:
-                print('ABORTED.')
-                break
-            else:
-                print()
-
-            successful = (reward >= env.reward_max)
-                
+            # Let us know how we did.
+            print('{}/{} | {:.2f} | {} | {:.2f} dB | {:.2f} dB | {:.2f} W | {:.2f} W | {:.2f} | '.format(episode_index, max_episodes_to_run, 
+                                                                                          agent.exploration_rate,
+                                                                                          timestep_index, 
+                                                                                          received_sinr,
+                                                                                          received_ue2_sinr,
+                                                                                          pt_serving, pt_interferer, 
+                                                                                          total_reward), end='')     
+    
             actions.append(action)
             sinr_progress.append(env.received_sinr_dB)
             sinr_ue2_progress.append(env.received_ue2_sinr_dB)
             serving_tx_power_progress.append(env.serving_transmit_power_dBm)
             interfering_tx_power_progress.append(env.interfering_transmit_power_dBm)
             
-            if len(agent.memory) > batch_size:
-                agent.replay(batch_size)
-                
-            replayed_episodes.append(episode_index)
-            
-          #  print('At t = {}, action played was {} with reward {}.'.format(timestep_index, action, reward))
-                    
-        if (successful):
-            episode_successful.append(episode_index)
-
-#        print('SINR progress')
-#        print(sinr_progress)
-#        print('Serving BS transmit power progress')
-#        print(serving_tx_power_progress)
-#        print('Interfering BS transmit power progress')
-#        print(interfering_tx_power_progress)
-        
-        # Get the performance of the episode z
-        q_z, l_z = agent.get_performance()
-        losses.append(np.mean(l_z)) # average across the batch size
-        future_rewards.append(np.mean(q_z))
-
-#        print(losses) # is equal to the number of episodes + 1
-#        print(future_rewards)
- 
-        # Plot the episode...
-        if (plotting and episode_index in [1842, 2733, 3216]):
-            plot_measurements(sinr_progress, sinr_ue2_progress, serving_tx_power_progress, interfering_tx_power_progress, max_timesteps_per_episode, episode_index, max_episodes_to_run)
-            plot_actions(actions, max_timesteps_per_episode, episode_index, max_episodes_to_run)
-    
-    plot_performance_function_deep(losses, is_loss=True)
-    plot_performance_function_deep(future_rewards, is_loss=False)
-              
-    if (len(episode_successful) == 0):
-        print("Goal cannot be reached after {} episodes.  Try to increase maximum episodes.".format(max_episodes_to_run))
-
-    print('Successful episode(s)')
-    print(episode_successful)
-    agent.save('deep_rl.model')
-    
-##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##
-
-def run_agent(env, plotting=False):
-    max_episodes_to_run = MAX_EPISODES # needed to ensure epsilon decays to min
-    max_timesteps_per_episode = 20 # one AMR frame ms.
-    successful = False
-    episode_successful = [] # a list to save the good episodes
-    Q_values = []
-
-    print('Ep.         | TS | Recv. SINR (sv) | Recv. SINR (int) | Serv. Tx Pwr | Int. Tx Pwr')
-    print('--'*44)
-    
-    # Implement the Q-learning algorithm
-    for episode_index in np.arange(max_episodes_to_run + 1):
-        observation = env.reset()
-        action = agent.begin_episode(observation)
-        reward = 0
-        done = False
-        actions = [action]
-        
-        sinr_progress = [] # needed for the SINR based on the episode.
-        sinr_ue2_progress = [] # needed for the SINR based on the episode.
-        serving_tx_power_progress = []
-        interfering_tx_power_progress = []
-        
-        for timestep_index in range(max_timesteps_per_episode):
-            print('{}/{} | {} | '.format(episode_index, max_episodes_to_run, timestep_index), end='')
-            # Perform the power control action and observe the new state.
-            observation, reward, done, abort = env.step(action)
-
-            # If the episode has ended prematurely, penalize the agent.
-            if done and timestep_index < max_timesteps_per_episode - 1:
-                reward = env.reward_min
-            
-            if reward < 0:
-                successful = False
-                
             if abort == True:
                 print('ABORTED.')
                 break
             else:
-                print()
-
-            successful = (reward >= env.reward_max)
-                
-            action = agent.act(observation, reward)
-
-            actions.append(action)
-            sinr_progress.append(env.received_sinr_dB)
-            sinr_ue2_progress.append(env.received_ue2_sinr_dB)
-            serving_tx_power_progress.append(env.serving_transmit_power_dBm)
-            interfering_tx_power_progress.append(env.interfering_transmit_power_dBm)
+                print()            
             
-          #  print('At t = {}, action played was {} with reward {}.'.format(timestep_index, action, reward))
+            # Update for the next episode
+            action = agent.act(observation)
             
-        Q_values.append(agent.get_performance())
+        # at the level of the episode end
+        loss_z = np.mean(episode_loss)
+        q_z = np.mean(episode_q)
+        
+        if (successful == True) and (abort == False):
+            reward = env.reward_max
+            total_reward += reward
+            print(Fore.GREEN + 'SUCCESS.  Total reward = {}.  Loss = {}.'.format(total_reward, loss_z))
+            print(Style.RESET_ALL)
+            
+            if (total_reward > max_reward):
+                max_reward, max_episode = total_reward, episode_index
+        else:
+            reward = 0
+            print(Fore.RED + 'FAILED TO REACH TARGET.')
+            print(Style.RESET_ALL)
+
+        
+        losses.append(loss_z)
+        Q_values.append(q_z)
         
         if (successful):
             episode_successful.append(episode_index)
+            
+        #        print('SINR progress')
+        #        print(sinr_progress)
+        #        print('Serving BS transmit power progress')
+        #        print(serving_tx_power_progress)
+        #        print('Interfering BS transmit power progress')
+        #        print(interfering_tx_power_progress)
+                        
+            # Plot the episode...
+            if (plotting and successful): 
+                plot_measurements(sinr_progress, sinr_ue2_progress, serving_tx_power_progress, interfering_tx_power_progress, max_timesteps_per_episode, episode_index, episode_index)
+                plot_actions(actions, max_timesteps_per_episode, episode_index, episode_index)
+          
+            plot_performance_function_deep(losses, episode_index, is_loss=True)
+            plot_performance_function_deep(Q_values, episode_index, is_loss=False)
+                             
+            print('First successful episode:')
+            print(episode_successful)
+            optimal = 'Episode {}/{} generated the highest reward {}.'.format(max_episode, MAX_EPISODES_DEEP, max_reward)
+            print(optimal)
+            
+            # Store all values in files
+            filename = 'figures/optimal.txt'
+            file = open(filename, 'w')
+            file.write(optimal)    
+            file.close()
+            
+            agent.save('deep_rl.model')
+            break
 
-#        print('SINR progress')
-#        print(sinr_progress)
-#        print('Serving BS transmit power progress')
-#        print(serving_tx_power_progress)
-#        print('Interfering BS transmit power progress')
-#        print(interfering_tx_power_progress)
-        
-        # Plot the episode...
-        if (plotting and episode_index in [9183, 31481, 32276, 32978, 34448]):
-            plot_measurements(sinr_progress, sinr_ue2_progress, serving_tx_power_progress, interfering_tx_power_progress, max_timesteps_per_episode, episode_index, max_episodes_to_run)
-            plot_actions(actions, max_timesteps_per_episode, episode_index, max_episodes_to_run)
-  
-    plot_performance_function(Q_values)
-              
     if (len(episode_successful) == 0):
         print("Goal cannot be reached after {} episodes.  Try to increase maximum episodes.".format(max_episodes_to_run))
 
-    print('Successful episode(s)')
-    print(episode_successful)
-
-
+    
+    
+def plot_performance_function_deep(values, episode_count, is_loss=False):
+#    print(values)
+    title = r'\bf Average $Q$' if not is_loss else r'\bf Episode Loss' 
+    y_label = 'Expected Action-Value $Q$' if not is_loss else r'\bf Expected Loss' 
+    filename = 'q_function' if not is_loss else 'losses'
+    fig = plt.figure(figsize=(7,5))
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    plt.title(title)
+    plt.xlabel('Episode')
+    plt.ylabel(y_label)
+   # plt.step(episodes, values, color='k')
+   
+    plt.plot(1 + np.arange(episode_count), values, linestyle='-', color='k')
+    # plt.plot(values, linestyle='-', color='k')
+    plt.grid(True)
+    plt.savefig('figures/{}.pdf'.format(filename), format="pdf")
+    
+    # Store all values in files
+    file = open('figures/{}.txt'.format(filename), 'w')
+    file.write('values: {}'.format(values))
+    file.close()
+    
+#    plt.show(block=True)
+    plt.close(fig)
+    
 def plot_measurements(sinr_progress, sinr_ue2_progress, serving_tx_power_progress, interfering_tx_power_progress, max_timesteps_per_episode, episode_index, max_episodes_to_run):
     # Do some nice plotting here
-    fig = plt.figure(figsize=(7,5))
+    fig = plt.figure(figsize=(8,5))
     
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
@@ -232,7 +224,7 @@ def plot_measurements(sinr_progress, sinr_ue2_progress, serving_tx_power_progres
     # Only integers                                
     ax = fig.gca()
     ax.xaxis.set_major_formatter(tick.FormatStrFormatter('%0g'))
-    ax.xaxis.set_ticks(np.arange(0, max_timesteps_per_episode + 1))
+    ax.xaxis.set_ticks(np.arange(0, max_timesteps_per_episode))
     
     ax_sec = ax.twinx()
     
@@ -244,28 +236,38 @@ def plot_measurements(sinr_progress, sinr_ue2_progress, serving_tx_power_progres
     ax_sec.plot(serving_tx_power_progress, linestyle='--', color='k', label='Serving BS')
     ax_sec.plot(interfering_tx_power_progress, linestyle='--', color='c', label='Interfering BS')
     
-    ax.set_xlim(xmin=0, xmax=max_timesteps_per_episode)
+    ax.set_xlim(xmin=0, xmax=max_timesteps_per_episode - 1)
     
     ax.axhline(y=env.min_sinr, xmin=0, color="red", linewidth=1.5, label='SINR min')
     ax.axhline(y=env.sinr_target, xmin=0, color="green",  linewidth=1.5, label='SINR target')
     ax.set_ylabel('DL Received SINR (dB)')
     ax_sec.set_ylabel('BS Transmit Power (dBm)')
     
-    ax.set_ylim(-7,30)
-    ax_sec.set_ylim(0,50)
+    max_sinr = max(max(sinr_progress), max(sinr_ue2_progress))
+    ax.set_ylim(env.min_sinr - 1, max_sinr + 1)
+    ax_sec.set_ylim(0, np.ceil(10*np.log10(1e3 * max(env.max_tx_power_interference, env.max_tx_power))))
     
     ax.legend(loc="lower left")
     ax_sec.legend(loc='upper right')
     
-    plt.title('Episode {0} / {1} ($\epsilon = {2:0.3}$)'.format(episode_index, max_episodes_to_run, agent.exploration_rate))
+   # plt.title('Episode {0} / {1} ($\epsilon = {2:0.3}$)'.format(episode_index, max_episodes_to_run, agent.exploration_rate))
     plt.grid(True)
     
+    # Store all values in files
+    filename = 'figures/measurements_{}.txt'.format(episode_index)
+    file = open(filename, 'w')
+    file.write('sinr_progress: {}'.format(sinr_progress))
+    file.write('sinr_ue2_progress: {}'.format(sinr_ue2_progress))
+    file.write('serving_tx_power: {}'.format(serving_tx_power_progress))
+    file.write('interf_tx_power: {}'.format(interfering_tx_power_progress))
+    file.close()
+    
     plt.savefig('figures/measurements_episode_{}.pdf'.format(episode_index), format="pdf")
-    plt.show(block=True)
+#    plt.show(block=True)
     plt.close(fig)
     
 def plot_actions(actions, max_timesteps_per_episode, episode_index, max_episodes_to_run):
-    fig = plt.figure(figsize=(7,5))
+    fig = plt.figure(figsize=(8,5))
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
     plt.xlabel('Transmit Time Interval (1 ms)')
@@ -274,63 +276,30 @@ def plot_actions(actions, max_timesteps_per_episode, episode_index, max_episodes
      # Only integers                                
     ax = fig.gca()
     ax.xaxis.set_major_formatter(tick.FormatStrFormatter('%0g'))
-    ax.xaxis.set_ticks(np.arange(0, max_timesteps_per_episode + 1))
+    ax.xaxis.set_ticks(np.arange(0, max_timesteps_per_episode))
     
-    ax.set_xlim(xmin=0, xmax=max_timesteps_per_episode)
+    ax.set_xlim(xmin=0, xmax=max_timesteps_per_episode-1)
     
     ax.set_autoscaley_on(False)
     ax.set_ylim(-1,env.num_actions)
     
-    plt.title('Episode {0} / {1} ($\epsilon = {2:0.3}$)'.format(episode_index, max_episodes_to_run, agent.exploration_rate))
+    #plt.title('Episode {0} / {1} ($\epsilon = {2:0.3}$)'.format(episode_index, max_episodes_to_run, agent.exploration_rate))
     plt.grid(True)
-        
+    
+    # Store all values in files
+    filename = 'figures/actions_{}.txt'.format(episode_index)
+    file = open(filename, 'w')
+    file.write('actions: {}'.format(actions))    
+    file.close()
+    
     plt.step(np.arange(len(actions)), actions, color='b', label='Actions')
     plt.savefig('figures/actions_episode_{}.pdf'.format(episode_index), format="pdf")
-    plt.show(block=True)
+#    plt.show(block=True)
     plt.close(fig)
     return
-
-def plot_performance_function_deep(values, is_loss=False):
-#    print(values)
-    title = r'\bf Average $Q$' if not is_loss else r'\bf Episode Loss' 
-    y_label = 'Expected Action-Value $Q$' if not is_loss else r'\bf Expected Loss' 
-    filename = 'q_function.pdf' if not is_loss else 'losses.pdf'
-    fig = plt.figure(figsize=(7,5))
-    plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
-    plt.title(title)
-    plt.xlabel('Episode')
-    plt.ylabel(y_label)
-   # plt.step(episodes, values, color='k')
-    plt.plot(np.arange(MAX_EPISODES_DEEP+1), values, linestyle='-', color='k')
-    # plt.plot(values, linestyle='-', color='k')
-    plt.grid(True)
-    plt.savefig('figures/{}'.format(filename), format="pdf")
-    plt.show(block=True)
-    plt.close(fig)
-
-
-def plot_performance_function(values):
-#    print(values)
-    title = r'\bf Average $Q$'
-    y_label = 'Expected Action-Value $Q$'
-    filename = 'q_function.pdf'
-    fig = plt.figure(figsize=(7,5))
-    plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
-    plt.title(title)
-    plt.xlabel('Episode')
-    plt.ylabel(y_label)
-    plt.plot(np.arange(MAX_EPISODES+1), values, color='k')
-    plt.grid(True)
-    plt.savefig('figures/{}'.format(filename), format="pdf")
-    plt.show(block=True)
-    plt.close(fig)
     
 ########################################################################################
     
-#run_agent_deep(env, True)
-run_agent(env, True)
-#run_agent_fpa(env, False)
+run_agent_deep(env)
 
 ########################################################################################
