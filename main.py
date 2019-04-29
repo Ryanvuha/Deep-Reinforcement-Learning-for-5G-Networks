@@ -16,13 +16,14 @@ import random
 import numpy as np
 from colorama import Fore, Back, Style
 
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tick
 
 from environment import radio_environment
 from DQNLearningAgent import DQNLearningAgent as QLearner # Deep with GPU and CPU fallback
 
-MAX_EPISODES_DEEP = 7000
+MAX_EPISODES_DEEP = 20000
 # Succ: 
 
 os.chdir('/Users/farismismar/Desktop/deep')
@@ -35,7 +36,7 @@ np.random.seed(seed)
 env = radio_environment(seed=seed)
 agent = QLearner(seed=seed)
 
-radio_frame = 6
+radio_frame = 7
     
 ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##
 
@@ -192,9 +193,16 @@ def plot_performance_function_deep(values, episode_count, is_loss=False):
     title = r'\bf Average $Q$' if not is_loss else r'\bf Episode Loss' 
     y_label = 'Expected Action-Value $Q$' if not is_loss else r'\bf Expected Loss' 
     filename = 'q_function' if not is_loss else 'losses'
-    fig = plt.figure(figsize=(7,5))
+    fig = plt.figure(figsize=(8,5))
+        
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
+    matplotlib.rcParams['text.usetex'] = True
+    matplotlib.rcParams['font.size'] = 16
+    matplotlib.rcParams['text.latex.preamble'] = [
+        r'\usepackage{amsmath}',
+        r'\usepackage{amssymb}']    
+
     plt.title(title)
     plt.xlabel('Episode')
     plt.ylabel(y_label)
@@ -219,6 +227,12 @@ def plot_measurements(sinr_progress, sinr_ue2_progress, serving_tx_power_progres
     
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
+    matplotlib.rcParams['text.usetex'] = True
+    matplotlib.rcParams['font.size'] = 16
+    matplotlib.rcParams['text.latex.preamble'] = [
+        r'\usepackage{amsmath}',
+        r'\usepackage{amssymb}']
+    
     plt.xlabel('Transmit Time Interval (1 ms)')
     
     # Only integers                                

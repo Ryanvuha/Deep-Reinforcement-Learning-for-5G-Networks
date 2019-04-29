@@ -78,8 +78,8 @@ class radio_environment:
         
         # for Beamforming
         self.use_beamforming = True
-        self.M_ULA = 2
-        self.k_oversample = 2 # oversampling factor
+        self.M_ULA = 4
+        self.k_oversample = 4 # oversampling factor
         self.Np = 4 # from 3 to 5 for mmWave
         self.F = np.zeros([self.M_ULA, self.M_ULA], dtype=complex)
         self.theta_n = math.pi * np.arange(start=0., stop=1., step=1./(self.k_oversample*self.M_ULA))
@@ -196,7 +196,7 @@ class radio_environment:
             return [], 0, False, True
         
         # move the UEs at a speed of v, in a random direction
-        v = 5 # km/h.
+        v = 2 # km/h.
 
         v *= 5./18 # in m/sec
         theta_1, theta_2 = self.np_random.uniform(low=-math.pi, high=math.pi, size=2)
@@ -281,8 +281,8 @@ class radio_environment:
         if self.use_beamforming == False:
             G_ant = self.G_ant_no_beamforming
             
-        # theta is the steering angle.  Sampled iid from unif(0,2pi).
-        theta = np.random.uniform(low=0, high=2*math.pi, size=self.Np)
+        # theta is the steering angle.  Sampled iid from unif(0,pi).
+        theta = np.random.uniform(low=0, high=math.pi, size=self.Np)
     
         is_mmWave = (self.f_c > 25e9)
         

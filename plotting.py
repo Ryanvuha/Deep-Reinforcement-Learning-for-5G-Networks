@@ -112,12 +112,49 @@ def plot_primary_three(X1, Y1, X2, Y2, title, xlabel, ylabel, filename='plot.pdf
     plt.savefig('figures/{}'.format(filename), format='pdf')
     plt.show()
     
+def plot_actions(actions, max_timesteps_per_episode, filename='plot.pdf'):
+    env_actions = 8
+    
+    # TODO convert actions
+    action_convert = actions
+    
+    fig = plt.figure(figsize=(8,5))
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    matplotlib.rcParams['text.usetex'] = True
+    matplotlib.rcParams['font.size'] = 16
+    matplotlib.rcParams['text.latex.preamble'] = [
+        r'\usepackage{amsmath}',
+        r'\usepackage{amssymb}']
+    
+    plt.xlabel('Transmit Time Interval (1 ms)')
+    plt.ylabel('Action')
+    
+     # Only integers                                
+    ax = fig.gca()
+    ax.xaxis.set_major_formatter(tick.FormatStrFormatter('%0g'))
+    ax.xaxis.set_ticks(np.arange(0, max_timesteps_per_episode))
+    
+    ax.set_xlim(xmin=0, xmax=max_timesteps_per_episode - 1)
+    
+    ax.set_autoscaley_on(False)
+    ax.set_ylim(-1, env_actions)
+    
+    plt.grid(True)
+        
+    plt.step(np.arange(len(actions)), action_convert_tx, color='b', label='Power Control -- BS 1')
+    plt.step(np.arange(len(actions)), action_convert_int, color='b', label='Power Control -- BS 2')
+    plt.savefig('figures/{}'.format(filename), format="pdf")
+    plt.show(block=True)
+    plt.close(fig)
+    return
+    
 X = np.log2(np.array([4,8,16,64,128]))
 
 ##############################
 # 1) Convergence vs Antenna Size
 Y = [136,257,320,756,801]
-plot_primary(X,Y, r'\textbf{Convergence vs. Antenna Size}', r'$M_\text{ULA}$', r'\textbf{Convergence Episode}', 'convergence.pdf')
+plot_primary(X,Y, r'\textbf{Convergence vs. Antenna Size}', r'$M_\text{ULA}$', r'Convergence Episode', 'convergence.pdf')
 ##############################
 
 ##############################
@@ -140,7 +177,7 @@ sinr2_128 = 10*np.log10(np.mean(10**(np.array( [14.627372540617834, 37.530325352
 Y1 = [sinr1_4, sinr1_8, sinr1_16, sinr1_64, sinr1_128]
 Y2 = [sinr2_4, sinr2_8, sinr2_16, sinr2_64, sinr2_128]
 
-plot_primary_two(X,Y1,Y2, r'\textbf{Achievable SNR vs. Antenna Size}', r'$M_\text{ULA}$', r'\textbf{Average Achievable SNR} [dB]', 'achievable_snr.pdf')
+plot_primary_two(X,Y1,Y2, r'\textbf{Achievable SNR vs. Antenna Size}', r'$M_\text{ULA}$', r'Average Achievable SNR [dB]', 'achievable_snr.pdf')
 ##############################
 
 ##############################
@@ -170,4 +207,8 @@ X1 = [tx_power1_4, tx_power1_8, tx_power1_16, tx_power1_64, tx_power1_128]
 X2 = [tx_power2_4, tx_power2_8, tx_power2_16, tx_power2_64, tx_power2_128]
 
 
-plot_primary_three(X1,Y1,X2,Y2, r'\textbf{Achievable SNR vs. Transmit Power}', r'\textbf{Average Transmit Power} [W]', r'\textbf{Average Achievable SNR} [dB]', 'snr_vs_tx_power.pdf')
+plot_primary_three(X1,Y1,X2,Y2, r'\textbf{Achievable SNR vs. Transmit Power}', r'Average Transmit Power [W]', r'Average Achievable SNR [dB]', 'snr_vs_tx_power.pdf')
+##############################
+
+##############################
+# 5) SNR vs. transmit power
