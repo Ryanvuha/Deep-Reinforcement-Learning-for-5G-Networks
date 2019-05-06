@@ -58,19 +58,27 @@ class radio_environment:
             
     '''     
     def __init__(self, seed):
-        self.cell_radius = 200 # in meters.
+        self.M_ULA = 4
+                
+        self.cell_radius = 150 # in meters.
         self.inter_site_distance = 3 * self.cell_radius / 2.
         self.num_users = 30 # number of users.
-        self.sinr_target = 3 # in dB
-        self.min_sinr = -6 # in dB
-        self.max_sinr = 1000 # in dB
+
+        self.min_sinr = -3 # in dB
+        self.max_sinr = 30 + 10*np.log10(self.M_ULA) # in dB.  30 dB was the average SINR with single antenna.
         self.max_tx_power = 40 # in Watts
         self.max_tx_power_interference = 40 # in Watts
-        self.f_c = 28e9 # 2100e6 # Hz
+        self.f_c = 28e9 # Hz
         self.G_ant_no_beamforming = 11 # dBi
         self.prob_LOS = 0.8 # Probability of LOS transmission
 
-        self.num_actions = 10 # 8 for voice and 10 for mmWave
+        self.num_actions = 8
+
+        self.user1_step = 0 # which step
+        self.user2_step = 0 # which step
+        
+        # Flags..  BF first, then PC next.        
+        self.periodicity = 4 # one BF change gives you 10 PC commands.
         
         # Where are the base stations?
         self.x_bs_1, self.y_bs_1 = 0, 0
@@ -78,7 +86,6 @@ class radio_environment:
         
         # for Beamforming
         self.use_beamforming = True
-        self.M_ULA = 4
         self.k_oversample = 4 # oversampling factor
         self.Np = 4 # from 3 to 5 for mmWave
         self.F = np.zeros([self.M_ULA, self.M_ULA], dtype=complex)
@@ -99,8 +106,8 @@ class radio_environment:
             -self.cell_radius,
             self.inter_site_distance-self.cell_radius,
             -self.cell_radius,
-            10,
-            5,
+            1,
+            1,
             0,
             0])
 
@@ -138,27 +145,31 @@ class radio_environment:
                       self.np_random.uniform(low=-self.cell_radius, high=self.cell_radius),
                       self.np_random.uniform(low=self.inter_site_distance-self.cell_radius, high=self.inter_site_distance+self.cell_radius),
                       self.np_random.uniform(low=-self.cell_radius, high=self.cell_radius),
-                      self.np_random.uniform(low=10, high=self.max_tx_power/2),
-                      self.np_random.uniform(low=5, high=self.max_tx_power_interference/2),
+                      self.np_random.uniform(low=1, high=self.max_tx_power/2),
+                      self.np_random.uniform(low=1, high=self.max_tx_power_interference/2),
                       self.f_n_bs1,
                       self.f_n_bs2
                       ]
         
 #        self.steps_beyond_done = None
-        
 
+        self.user1_step = 0
+        self.user2_step = 0
+        
         return np.array(self.state)
     
     def step(self, action):
         assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
+
         state = self.state
-        reward = 0
+        reward = -2
         x_ue_1, y_ue_1, x_ue_2, y_ue_2, pt_serving, pt_interferer, f_n_bs1, f_n_bs2 = state
 
         # based on the action make your call
         #if (action == 0):
              # Do nothing
           #   reward = 0
+        '''
         if (action == 0):
             pt_serving *= 10**(1/10.)
             reward += 1
@@ -185,10 +196,44 @@ class radio_environment:
             reward += 1
         elif (action == 8):
             f_n_bs1 = (f_n_bs1 + 1) % self.M_ULA
-            reward += 3
+            reward += 5
         elif (action == 9):
             f_n_bs2 = (f_n_bs2 + 1) % self.M_ULA
-            reward += 1
+            reward += 5
+        '''
+
+        # only once a period, perform BF
+        if (self.user1_step % self.periodicity == 0):
+            self.user1_step += 1
+            if (action == 0):
+                f_n_bs1 = (f_n_bs1 + 1) % self.M_ULA
+                reward += 3
+            if (action == 1):
+                f_n_bs2 = (f_n_bs2 + 1) % self.M_ULA
+                reward += 3
+        else: # otherwise, only PC.
+            if (action == 4):
+                pt_serving *= 10**(1/10.)
+                reward += 3
+            if (action == 5):
+                pt_serving *= 10**(-1/10.)
+                reward += 3
+                
+        if (self.user2_step % self.periodicity == 0):
+            self.user2_step += 1
+            if (action == 2):
+                f_n_bs1 = (f_n_bs1 - 1) % self.M_ULA
+                reward += 3
+            if (action == 3):
+                f_n_bs2 = (f_n_bs2 - 1) % self.M_ULA
+                reward += 3
+        else:
+            if (action == 6):
+                pt_interferer *= 10**(-1/10.)
+                reward += 3
+            if (action == 7):
+                pt_interferer *= 10**(1/10.)
+                reward += 3
             
         if (action > self.num_actions - 1):
             print('WARNING: Invalid action played!')
@@ -229,10 +274,11 @@ class radio_environment:
         self.interfering_transmit_power_dBm = 10*np.log10(pt_interferer*1e3)
 
         # Did we find a FEASIBLE NON-DEGENERATE solution?
-        done = (received_sinr >= self.sinr_target) and (pt_serving <= self.max_tx_power) and (pt_serving >= 0) and (pt_interferer <= self.max_tx_power_interference) and (pt_interferer >= 0) and (received_ue2_sinr >= self.sinr_target)
+        done = (pt_serving <= self.max_tx_power) and (pt_serving >= 0) and (pt_interferer <= self.max_tx_power_interference) and (pt_interferer >= 0) and \
+                (received_sinr >= self.min_sinr) and (received_ue2_sinr >= self.min_sinr) 
                 
         abort = (pt_serving > self.max_tx_power) or (pt_interferer > self.max_tx_power_interference) or (received_sinr < self.min_sinr) or (received_ue2_sinr < self.min_sinr) \
-                or (received_sinr > self.max_sinr) or (received_ue2_sinr > self.max_sinr) or (received_sinr < self.sinr_target) or (received_ue2_sinr < self.sinr_target)
+                or (received_sinr > self.max_sinr) or (received_ue2_sinr > self.max_sinr) #or (received_sinr < self.sinr_target) or (received_ue2_sinr < self.sinr_target)
                 
 #        print('{:.2f} dB | {:.2f} dB | {:.2f} W | {:.2f} W '.format(received_sinr, received_ue2_sinr, pt_serving, pt_interferer), end='')
 #        print('Done: {}'.format(done))
