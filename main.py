@@ -23,7 +23,7 @@ import matplotlib.ticker as tick
 from environment import radio_environment
 from DQNLearningAgent import DQNLearningAgent as QLearner # Deep with GPU and CPU fallback
 
-MAX_EPISODES_DEEP = 20000
+MAX_EPISODES_DEEP = 2000
 # Succ: 
 
 os.chdir('/Users/farismismar/Desktop/deep')
@@ -36,7 +36,7 @@ np.random.seed(seed)
 env = radio_environment(seed=seed)
 agent = QLearner(seed=seed)
 
-radio_frame = 7
+radio_frame = 10
     
 ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##
 
@@ -60,10 +60,23 @@ def run_agent_deep(env, plotting=True):
     for episode_index in 1 + np.arange(max_episodes_to_run):
         observation = env.reset()
       #  observation = np.reshape(observation, [1, agent._state_size])
-        action = agent.begin_episode(observation)
+      
+        (_, _, _, _, pt_serving, pt_interferer, _, _) = observation
+
+        action = agent.begin_episode(observation)        
+        # Let us know how we did.
+        print('{}/{} | {:.2f} | {} | {:.2f} dB | {:.2f} dB | {:.2f} W | {:.2f} W | {:.2f} | {} '.format(episode_index, max_episodes_to_run, 
+                                                                                      agent.exploration_rate,
+                                                                                      0, 
+                                                                                      np.nan,
+                                                                                      np.nan,
+                                                                                      pt_serving, pt_interferer, 
+                                                                                      0, action))   
+
+
         total_reward = 0
         done = False
-        actions = []
+        actions = [action]
         
         sinr_progress = [] # needed for the SINR based on the episode.
         sinr_ue2_progress = [] # needed for the SINR based on the episode.
@@ -73,7 +86,7 @@ def run_agent_deep(env, plotting=True):
         episode_loss = []
         episode_q = []
 
-        for timestep_index in range(max_timesteps_per_episode):
+        for timestep_index in 1 + np.arange(max_timesteps_per_episode):
             # Take a step
             next_observation, reward, done, abort = env.step(action)
             (_, _, _, _, pt_serving, pt_interferer, _, _) = next_observation
@@ -104,16 +117,16 @@ def run_agent_deep(env, plotting=True):
             observation = next_observation
             total_reward += reward            
                             
-            successful = (total_reward > 0) and (abort == False)
+            successful = done and (total_reward > 0) and (abort == False)
             
             # Let us know how we did.
-            print('{}/{} | {:.2f} | {} | {:.2f} dB | {:.2f} dB | {:.2f} W | {:.2f} W | {:.2f} | '.format(episode_index, max_episodes_to_run, 
+            print('{}/{} | {:.2f} | {} | {:.2f} dB | {:.2f} dB | {:.2f} W | {:.2f} W | {:.2f} | {} | '.format(episode_index, max_episodes_to_run, 
                                                                                           agent.exploration_rate,
                                                                                           timestep_index, 
                                                                                           received_sinr,
                                                                                           received_ue2_sinr,
                                                                                           pt_serving, pt_interferer, 
-                                                                                          total_reward), end='')     
+                                                                                          total_reward, action), end='')     
     
             actions.append(action)
             sinr_progress.append(env.received_sinr_dB)
@@ -127,7 +140,7 @@ def run_agent_deep(env, plotting=True):
             else:
                 print()            
             
-            # Update for the next episode
+            # Update for the next time step
             action = agent.act(observation)
             
         # at the level of the episode end
@@ -161,6 +174,9 @@ def run_agent_deep(env, plotting=True):
         #        print('Interfering BS transmit power progress')
         #        print(interfering_tx_power_progress)
                         
+# Note.. remove the break on line 199
+# for looping against all episodes
+        
             # Plot the episode...
             if (plotting and successful): 
                 plot_measurements(sinr_progress, sinr_ue2_progress, serving_tx_power_progress, interfering_tx_power_progress, max_timesteps_per_episode, episode_index, episode_index)
@@ -168,25 +184,23 @@ def run_agent_deep(env, plotting=True):
           
             plot_performance_function_deep(losses, episode_index, is_loss=True)
             plot_performance_function_deep(Q_values, episode_index, is_loss=False)
-                             
-            print('First successful episode:')
-            print(episode_successful)
-            optimal = 'Episode {}/{} generated the highest reward {}.'.format(max_episode, MAX_EPISODES_DEEP, max_reward)
-            print(optimal)
             
-            # Store all values in files
-            filename = 'figures/optimal.txt'
-            file = open(filename, 'w')
-            file.write(optimal)    
-            file.close()
-            
-            agent.save('deep_rl.model')
-            break
+            # break
+                 
+    optimal = 'Episode {}/{} generated the highest reward {}.'.format(max_episode, MAX_EPISODES_DEEP, max_reward)
+    print(optimal)
+                    
+    # Store all values in files
+    filename = 'figures/optimal.txt'
+    file = open(filename, 'w')
+    file.write(optimal)    
+    file.close()
+    
+    agent.save('deep_rl.model')
 
     if (len(episode_successful) == 0):
         print("Goal cannot be reached after {} episodes.  Try to increase maximum episodes.".format(max_episodes_to_run))
 
-    
     
 def plot_performance_function_deep(values, episode_count, is_loss=False):
 #    print(values)
@@ -253,7 +267,7 @@ def plot_measurements(sinr_progress, sinr_ue2_progress, serving_tx_power_progres
     ax.set_xlim(xmin=0, xmax=max_timesteps_per_episode - 1)
     
     ax.axhline(y=env.min_sinr, xmin=0, color="red", linewidth=1.5, label='SINR min')
-    ax.axhline(y=env.sinr_target, xmin=0, color="green",  linewidth=1.5, label='SINR target')
+#    ax.axhline(y=env.sinr_target, xmin=0, color="green",  linewidth=1.5, label='SINR target')
     ax.set_ylabel('DL Received SINR (dB)')
     ax_sec.set_ylabel('BS Transmit Power (dBm)')
     

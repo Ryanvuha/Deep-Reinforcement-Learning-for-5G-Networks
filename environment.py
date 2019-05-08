@@ -58,27 +58,32 @@ class radio_environment:
             
     '''     
     def __init__(self, seed):
-        self.M_ULA = 4
+        self.M_ULA = 64
                 
         self.cell_radius = 150 # in meters.
         self.inter_site_distance = 3 * self.cell_radius / 2.
         self.num_users = 30 # number of users.
 
         self.min_sinr = -3 # in dB
-        self.max_sinr = 30 + 10*np.log10(self.M_ULA) # in dB.  30 dB was the average SINR with single antenna.
+        self.max_sinr = np.inf #30 + 10*np.log10(self.M_ULA) # in dB.  30 dB was the average SINR with single antenna.
         self.max_tx_power = 40 # in Watts
         self.max_tx_power_interference = 40 # in Watts
         self.f_c = 28e9 # Hz
         self.G_ant_no_beamforming = 11 # dBi
         self.prob_LOS = 0.8 # Probability of LOS transmission
 
-        self.num_actions = 8
+        self.num_actions = 6
 
-        self.user1_step = 0 # which step
-        self.user2_step = 0 # which step
+        self.step_count = 0 # which step
+
+        self.power_changed1 = False # did the BS power legitimally change?
+        self.power_changed2 = False
+        self.bf_changed1 = False # did the BS power legitimally change?
+        self.bf_changed2 = False
+
         
         # Flags..  BF first, then PC next.        
-        self.periodicity = 4 # one BF change gives you 10 PC commands.
+        self.periodicity = 2 # one BF change gives you periodicity PC commands.
         
         # Where are the base stations?
         self.x_bs_1, self.y_bs_1 = 0, 0
@@ -153,16 +158,21 @@ class radio_environment:
         
 #        self.steps_beyond_done = None
 
-        self.user1_step = 0
-        self.user2_step = 0
         
+        self.power_changed1 = False
+        self.power_changed2 = False
+        self.bf_changed1 = False 
+        self.bf_changed2 = False
+        
+        self.step_count = 0
+
         return np.array(self.state)
     
     def step(self, action):
         assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
 
         state = self.state
-        reward = -2
+        reward = 0
         x_ue_1, y_ue_1, x_ue_2, y_ue_2, pt_serving, pt_interferer, f_n_bs1, f_n_bs2 = state
 
         # based on the action make your call
@@ -203,37 +213,32 @@ class radio_environment:
         '''
 
         # only once a period, perform BF
-        if (self.user1_step % self.periodicity == 0):
-            self.user1_step += 1
-            if (action == 0):
-                f_n_bs1 = (f_n_bs1 + 1) % self.M_ULA
-                reward += 3
-            if (action == 1):
-                f_n_bs2 = (f_n_bs2 + 1) % self.M_ULA
-                reward += 3
-        else: # otherwise, only PC.
-            if (action == 4):
-                pt_serving *= 10**(1/10.)
-                reward += 3
-            if (action == 5):
-                pt_serving *= 10**(-1/10.)
-                reward += 3
-                
-        if (self.user2_step % self.periodicity == 0):
-            self.user2_step += 1
-            if (action == 2):
-                f_n_bs1 = (f_n_bs1 - 1) % self.M_ULA
-                reward += 3
-            if (action == 3):
-                f_n_bs2 = (f_n_bs2 - 1) % self.M_ULA
-                reward += 3
-        else:
-            if (action == 6):
-                pt_interferer *= 10**(-1/10.)
-                reward += 3
-            if (action == 7):
-                pt_interferer *= 10**(1/10.)
-                reward += 3
+
+        self.step_count += 1
+        if (action == 0):
+            pt_serving *= 10**(1/10.)
+            self.power_changed1 = True
+            reward += self.step_count % self.periodicity
+        elif (action == 1):
+            pt_serving *= 10**(-1/10.)
+            self.power_changed1 = True
+            reward += self.step_count % self.periodicity
+        elif (action == 2):
+            pt_interferer *= 10**(-1/10.)
+            self.power_changed2 = True
+            reward += self.step_count % self.periodicity
+        if (action == 3):
+            pt_interferer *= 10**(1/10.)
+            self.power_changed2 = True
+            reward += self.step_count % self.periodicity
+        if (action == 4):
+            f_n_bs1 = (f_n_bs1 + 1) % self.M_ULA
+            reward += 12 - (self.step_count % self.periodicity) # periodicity should not exceed 10
+            self.bf_changed1 = True
+        if (action == 5):
+            f_n_bs2 = (f_n_bs2 + 1) % self.M_ULA
+            reward += 12 - (self.step_count % self.periodicity)
+            self.bf_changed2 = True
             
         if (action > self.num_actions - 1):
             print('WARNING: Invalid action played!')
@@ -275,7 +280,7 @@ class radio_environment:
 
         # Did we find a FEASIBLE NON-DEGENERATE solution?
         done = (pt_serving <= self.max_tx_power) and (pt_serving >= 0) and (pt_interferer <= self.max_tx_power_interference) and (pt_interferer >= 0) and \
-                (received_sinr >= self.min_sinr) and (received_ue2_sinr >= self.min_sinr) 
+                (received_sinr >= self.min_sinr) and (received_ue2_sinr >= self.min_sinr) and (self.power_changed1 and self.power_changed2) and (self.bf_changed1 and self.bf_changed2)
                 
         abort = (pt_serving > self.max_tx_power) or (pt_interferer > self.max_tx_power_interference) or (received_sinr < self.min_sinr) or (received_ue2_sinr < self.min_sinr) \
                 or (received_sinr > self.max_sinr) or (received_ue2_sinr > self.max_sinr) #or (received_sinr < self.sinr_target) or (received_ue2_sinr < self.sinr_target)
@@ -283,7 +288,8 @@ class radio_environment:
 #        print('{:.2f} dB | {:.2f} dB | {:.2f} W | {:.2f} W '.format(received_sinr, received_ue2_sinr, pt_serving, pt_interferer), end='')
 #        print('Done: {}'.format(done))
 #        print('UE moved to ({0:0.3f},{1:0.3f}) and their received SINR became {2:0.3f} dB.'.format(x,y,received_sinr))
-        
+
+
         # Update the state.
         self.state = (x_ue_1, y_ue_1, x_ue_2, y_ue_2, pt_serving, pt_interferer, f_n_bs1, f_n_bs2)
      
