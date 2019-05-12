@@ -23,10 +23,10 @@ import matplotlib.ticker as tick
 from environment import radio_environment
 from DQNLearningAgent import DQNLearningAgent as QLearner # Deep with GPU and CPU fallback
 
-MAX_EPISODES_DEEP = 2000
+MAX_EPISODES_DEEP = 10000
 # Succ: 
 
-os.chdir('/Users/farismismar/Desktop/deep')
+os.chdir('/Users/farismismar/Desktop/test')
 
 seed = 0
 
@@ -36,7 +36,7 @@ np.random.seed(seed)
 env = radio_environment(seed=seed)
 agent = QLearner(seed=seed)
 
-radio_frame = 10
+radio_frame = 15
     
 ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##    ##
 
@@ -148,8 +148,8 @@ def run_agent_deep(env, plotting=True):
         q_z = np.mean(episode_q)
         
         if (successful == True) and (abort == False):
-            reward = env.reward_max
-            total_reward += reward
+            #reward = env.reward_max
+            #total_reward += reward
             print(Fore.GREEN + 'SUCCESS.  Total reward = {}.  Loss = {}.'.format(total_reward, loss_z))
             print(Style.RESET_ALL)
             
@@ -225,10 +225,10 @@ def plot_performance_function_deep(values, episode_count, is_loss=False):
     plt.plot(1 + np.arange(episode_count), values, linestyle='-', color='k')
     # plt.plot(values, linestyle='-', color='k')
     plt.grid(True)
-    plt.savefig('figures/{}.pdf'.format(filename), format="pdf")
+    plt.savefig('figures/{}_{}.pdf'.format(filename, episode_count), format="pdf")
     
     # Store all values in files
-    file = open('figures/{}.txt'.format(filename), 'w')
+    file = open('figures/{}_{}.txt'.format(filename, episode_count), 'w')
     file.write('values: {}'.format(values))
     file.close()
     

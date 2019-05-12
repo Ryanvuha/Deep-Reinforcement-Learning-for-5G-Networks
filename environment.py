@@ -58,7 +58,7 @@ class radio_environment:
             
     '''     
     def __init__(self, seed):
-        self.M_ULA = 64
+        self.M_ULA = 4
                 
         self.cell_radius = 150 # in meters.
         self.inter_site_distance = 3 * self.cell_radius / 2.
@@ -295,7 +295,7 @@ class radio_environment:
      
         if done == True:
             abort = False
-            reward += 0 # do not add more, because done is likely too soon.
+            reward += self.reward_max
         elif abort:
             reward = self.reward_min
 
