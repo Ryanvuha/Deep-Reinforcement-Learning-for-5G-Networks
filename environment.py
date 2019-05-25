@@ -123,8 +123,8 @@ class radio_environment:
             self.cell_radius,
             self.max_tx_power,
             self.max_tx_power_interference,
-            self.M_ULA - 1,
-            self.M_ULA - 1])
+            self.k_oversample*self.M_ULA - 1,
+            self.k_oversample*self.M_ULA - 1])
 
         self.action_space = spaces.Discrete(self.num_actions) # action size is here
         self.observation_space = spaces.Box(bounds_lower, bounds_upper, dtype=np.float32) # spaces.Discrete(2) # state size is here 
@@ -232,11 +232,11 @@ class radio_environment:
             self.power_changed2 = True
             reward += self.step_count % self.periodicity
         if (action == 4):
-            f_n_bs1 = (f_n_bs1 + 1) % self.M_ULA
+            f_n_bs1 = (f_n_bs1 + 1) % self.k_oversample*self.M_ULA
             reward += 12 - (self.step_count % self.periodicity) # periodicity should not exceed 10
             self.bf_changed1 = True
         if (action == 5):
-            f_n_bs2 = (f_n_bs2 + 1) % self.M_ULA
+            f_n_bs2 = (f_n_bs2 + 1) % self.k_oversample*self.M_ULA
             reward += 12 - (self.step_count % self.periodicity)
             self.bf_changed2 = True
             
