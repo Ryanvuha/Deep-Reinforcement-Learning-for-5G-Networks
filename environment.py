@@ -58,7 +58,7 @@ class radio_environment:
             
     '''     
     def __init__(self, seed):
-        self.M_ULA = 4
+        self.M_ULA = 64
                 
         self.cell_radius = 150 # in meters.
         self.inter_site_distance = 3 * self.cell_radius / 2.
@@ -93,10 +93,10 @@ class radio_environment:
         self.use_beamforming = True
         self.k_oversample = 4 # oversampling factor
         self.Np = 4 # from 3 to 5 for mmWave
-        self.F = np.zeros([self.M_ULA, self.M_ULA], dtype=complex)
+        self.F = np.zeros([self.M_ULA, self.k_oversample*self.M_ULA], dtype=complex)
         self.theta_n = math.pi * np.arange(start=0., stop=1., step=1./(self.k_oversample*self.M_ULA))
         # Beamforming codebook F
-        for n in np.arange(self.M_ULA):
+        for n in np.arange(self.k_oversample*self.M_ULA):
             f_n = self._compute_bf_vector(self.theta_n[n])
             self.F[:,n] = f_n
         self.f_n_bs1 = None  # The index in the codebook for serving BS
