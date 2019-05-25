@@ -45,20 +45,16 @@ class radio_environment:
             Type: Discrete(8 or 10)
             Num	Action
             0	Power up by 1 dB
-            1	Power up by 3 dB
-            2   Power down by 3 dB
-            3   Power down by 1 dB
-            4   Power neighbor down by 1 dB
-            5   Power neighbor down by 3 dB
-            6   Power neighbor up by 1 dB
-            7   Power neighbor up by 3 dB
-            8   Step up the index in codebook for Serving
-            9   Step up the index in codebook for Neighbor
+            1   Power down by 1 dB
+            2   Power neighbor down by 1 dB
+            3   Power neighbor up by 1 dB
+            4   Step up the index in codebook for Serving
+            5   Step up the index in codebook for Neighbor
 
             
     '''     
     def __init__(self, seed):
-        self.M_ULA = 64
+        self.M_ULA = 16
                 
         self.cell_radius = 150 # in meters.
         self.inter_site_distance = 3 * self.cell_radius / 2.
@@ -91,7 +87,7 @@ class radio_environment:
         
         # for Beamforming
         self.use_beamforming = True
-        self.k_oversample = 4 # oversampling factor
+        self.k_oversample = 2 # oversampling factor
         self.Np = 4 # from 3 to 5 for mmWave
         self.F = np.zeros([self.M_ULA, self.k_oversample*self.M_ULA], dtype=complex)
         self.theta_n = math.pi * np.arange(start=0., stop=1., step=1./(self.k_oversample*self.M_ULA))
