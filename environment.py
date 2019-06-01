@@ -54,14 +54,14 @@ class radio_environment:
             
     '''     
     def __init__(self, seed):
-        self.M_ULA = 16
+        self.M_ULA = 64
                 
         self.cell_radius = 150 # in meters.
         self.inter_site_distance = 3 * self.cell_radius / 2.
         self.num_users = 30 # number of users.
 
         self.min_sinr = -3 # in dB
-        self.max_sinr = np.inf #30 + 10*np.log10(self.M_ULA) # in dB.  30 dB was the average SINR with single antenna.
+        self.sinr_target = 20 + 10*np.log10(self.M_ULA) # in dB.
         self.max_tx_power = 40 # in Watts
         self.max_tx_power_interference = 40 # in Watts
         self.f_c = 28e9 # Hz
@@ -87,7 +87,7 @@ class radio_environment:
         
         # for Beamforming
         self.use_beamforming = True
-        self.k_oversample = 2 # oversampling factor
+        self.k_oversample = 1 # oversampling factor
         self.Np = 4 # from 3 to 5 for mmWave
         self.F = np.zeros([self.M_ULA, self.k_oversample*self.M_ULA], dtype=complex)
         self.theta_n = math.pi * np.arange(start=0., stop=1., step=1./(self.k_oversample*self.M_ULA))
@@ -165,7 +165,7 @@ class radio_environment:
         return np.array(self.state)
     
     def step(self, action):
-        assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
+       # assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
 
         state = self.state
         reward = 0
@@ -229,12 +229,15 @@ class radio_environment:
             reward += self.step_count % self.periodicity
         if (action == 4):
             f_n_bs1 = (f_n_bs1 + 1) % self.k_oversample*self.M_ULA
-            reward += 12 - (self.step_count % self.periodicity) # periodicity should not exceed 10
+            reward += 15 - (self.step_count % self.periodicity) # periodicity should not exceed 10
             self.bf_changed1 = True
         if (action == 5):
             f_n_bs2 = (f_n_bs2 + 1) % self.k_oversample*self.M_ULA
-            reward += 12 - (self.step_count % self.periodicity)
+            reward += 15 - (self.step_count % self.periodicity)
             self.bf_changed2 = True
+        if (action == -1):
+            reward += 0
+            # do nothing, this is for optimal bf.
             
         if (action > self.num_actions - 1):
             print('WARNING: Invalid action played!')
@@ -276,24 +279,29 @@ class radio_environment:
 
         # Did we find a FEASIBLE NON-DEGENERATE solution?
         done = (pt_serving <= self.max_tx_power) and (pt_serving >= 0) and (pt_interferer <= self.max_tx_power_interference) and (pt_interferer >= 0) and \
-                (received_sinr >= self.min_sinr) and (received_ue2_sinr >= self.min_sinr) and (self.power_changed1 and self.power_changed2) and (self.bf_changed1 and self.bf_changed2)
+                (received_sinr >= self.min_sinr) and (received_ue2_sinr >= self.min_sinr) and (self.power_changed1 and self.power_changed2) and (self.bf_changed1 and self.bf_changed2) and (received_sinr >= self.sinr_target) and (received_ue2_sinr >= self.sinr_target)
                 
         abort = (pt_serving > self.max_tx_power) or (pt_interferer > self.max_tx_power_interference) or (received_sinr < self.min_sinr) or (received_ue2_sinr < self.min_sinr) \
-                or (received_sinr > self.max_sinr) or (received_ue2_sinr > self.max_sinr) #or (received_sinr < self.sinr_target) or (received_ue2_sinr < self.sinr_target)
+            or (received_sinr > 50 + self.sinr_target) or (received_ue2_sinr > 50 + self.sinr_target) # consider x dB above target is too high.
                 
 #        print('{:.2f} dB | {:.2f} dB | {:.2f} W | {:.2f} W '.format(received_sinr, received_ue2_sinr, pt_serving, pt_interferer), end='')
 #        print('Done: {}'.format(done))
 #        print('UE moved to ({0:0.3f},{1:0.3f}) and their received SINR became {2:0.3f} dB.'.format(x,y,received_sinr))
-
-
+        
         # Update the state.
         self.state = (x_ue_1, y_ue_1, x_ue_2, y_ue_2, pt_serving, pt_interferer, f_n_bs1, f_n_bs2)
      
-        if done == True:
-            abort = False
-            reward += self.reward_max
-        elif abort:
+        #if done == True:
+        #    abort = False
+        #    reward += self.reward_max
+        #elif abort:
+        #    reward = self.reward_min
+
+        if abort == True:
+            done = False
             reward = self.reward_min
+        elif done:
+            reward += self.reward_max
 
 #        print(done, (received_sinr >= self.sinr_target) , (pt_serving <= self.max_tx_power) , (pt_serving >= 0) , \
 #                (pt_interferer <= self.max_tx_power_interference) , (pt_interferer >= 0) , (received_ue2_sinr >= self.sinr_target))
