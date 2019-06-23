@@ -11,11 +11,11 @@ os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID";
  
 # The GPU id to use, usually either "0" or "1";
 os.environ["CUDA_VISIBLE_DEVICES"]="0";   # My NVIDIA GTX 1080 Ti FE GPU
+from keras import backend as K
 
 import random
 import numpy as np
 from colorama import Fore, Back, Style
-from numba import cuda
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -506,8 +506,7 @@ for seed in seeds:
 #    run_agent_optimal(env)
 
     run_agent_deep(env)
-    cuda.select_device(0) # free up memory
-    cuda.close()
+    K.clear_session() # free up GPU memory
   
 
 ########################################################################################
