@@ -15,6 +15,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0";   # My NVIDIA GTX 1080 Ti FE GPU
 import random
 import numpy as np
 from colorama import Fore, Back, Style
+from numba import cuda
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -491,8 +492,8 @@ def plot_actions(actions, max_timesteps_per_episode, episode_index, max_episodes
 ########################################################################################
 
 radio_frame = 15
-seeds = np.arange(10).tolist() # for Deep RL
-seeds = [0] # enough for optimal
+seeds = np.arange(1200).astype(int).tolist() # for Deep RL
+#seeds = [0] # enough for optimal
 
 for seed in seeds:
 
@@ -502,9 +503,11 @@ for seed in seeds:
     env = radio_environment(seed=seed)
     agent = QLearner(seed=seed)
 
-    run_agent_optimal(env)
+#    run_agent_optimal(env)
 
-  #  run_agent_deep(env)
+    run_agent_deep(env)
+    cuda.select_device(0) # free up memory
+    cuda.close()
   
 
 ########################################################################################
