@@ -25,7 +25,7 @@ from environment import radio_environment
 from DQNLearningAgent import DQNLearningAgent as QLearner # Deep with GPU and CPU fallback
 
 MAX_EPISODES_DEEP = 10000
-MAX_EPISODES_OPTIMAL = 10000
+MAX_EPISODES_OPTIMAL = 1000
 
 # Succ: 
 
@@ -492,8 +492,8 @@ def plot_actions(actions, max_timesteps_per_episode, episode_index, max_episodes
 ########################################################################################
 
 radio_frame = 15
-#seeds = np.arange(1100).astype(int).tolist() # for Deep RL
-seeds = [0] # for optimal
+seeds = np.arange(1100).astype(int).tolist() # for Deep RL
+#seeds = np.arange(7).astype(int).tolist() # for optimal RL
 
 for seed in seeds:
 
