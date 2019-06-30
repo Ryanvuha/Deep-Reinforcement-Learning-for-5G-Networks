@@ -1,1 +1,1 @@
-# Q-Learning-Power-Control-Interference-Coordination
+# Deep-Reinforcement-Learning-for-5G-Networks
