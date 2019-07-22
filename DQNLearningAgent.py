@@ -48,6 +48,10 @@ class DQNLearningAgent:
         random.seed(self.seed)
         np.random.seed(self.seed)
         
+        gpu_available = tf.test.is_gpu_available()
+        if (gpu_available == False):
+            print('WARNING: No GPU available.  Will continue with CPU.')
+        
         self.model = self._build_model()
                 
     def begin_episode(self, observation):
