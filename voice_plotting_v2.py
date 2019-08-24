@@ -60,7 +60,7 @@ def generate_ccdf(data1, data2, data3):
     labels = ['Tabular $Q$-learning', 'Deep $Q$-learning (proposed)', 'Fixed Power Allocation (FPA)']
     ax.set_xlabel('$\gamma$')
     ax.set_ylabel('$1 - F_\Gamma(\gamma)$')        
-    ax.legend(labels, loc="auto")
+    ax.legend(labels, loc="best")
     plt.grid(True)
     plt.tight_layout()
     plt.savefig('figures/voice_ccdf.pdf', format="pdf")
