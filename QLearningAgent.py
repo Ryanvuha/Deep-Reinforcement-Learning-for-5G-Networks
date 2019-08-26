@@ -18,12 +18,12 @@ class QLearningAgent:
                  learning_rate=0.2,
                  discount_factor=0.995,
                  exploration_rate=1.0,
-                 exploration_decay_rate=0.99):
+                 exploration_decay_rate=0.9995):
 
         self.learning_rate = learning_rate          # alpha
         self.discount_factor = discount_factor      # gamma
         self.exploration_rate = exploration_rate / exploration_decay_rate   # epsilon
-        self.exploration_rate_min = 0.010
+        self.exploration_rate_min = 0.15
         self.exploration_decay_rate = exploration_decay_rate # d
         self.state = None
         self.action = None
@@ -31,27 +31,30 @@ class QLearningAgent:
         self._state_size = 6 # discretized from observation
         self._action_size = 8 # check the actions in the environment
         
+        self.oversampling = 1 # for discretization.  Increasing may cause memory exhaust.
+        
         # Add a few lines to caputre the seed for reproducibility.
         self.seed = seed
         random.seed(self.seed)
         np.random.seed(self.seed)
         
-        # Discretize the continuous state space for each of the 4 features.
-        num_discretization_bins = self._state_size
+        # Discretize the continuous state space for each of the features.
+        num_discretization_bins = self._state_size * self.oversampling
         
+        # check the site distance configuration in the environment
         self._state_bins = [
             # User X - serv
-            self._discretize_range(-500, 500, num_discretization_bins),
+            self._discretize_range(-350, 350, num_discretization_bins),
             # User Y - serv
-            self._discretize_range(-500, 500, num_discretization_bins),
+            self._discretize_range(-350, 350, num_discretization_bins),
             # User X - interf
-            self._discretize_range(-500, 500, num_discretization_bins),
+            self._discretize_range(175, 875, num_discretization_bins),
             # User Y - interf
-            self._discretize_range(-500, 500, num_discretization_bins),
+            self._discretize_range(-350, 350, num_discretization_bins),
             # Serving BS power.
             self._discretize_range(0, 40, num_discretization_bins),
             # Interfering BS power.
-            self._discretize_range(0, 40, num_discretization_bins)
+            self._discretize_range(0, 40, num_discretization_bins),
         ]
         
         # Create a clean Q-Table.

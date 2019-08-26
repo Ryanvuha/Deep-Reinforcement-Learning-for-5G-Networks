@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Feb 27 13:31:50 2019
+Created on Sat May 25 11:34:42 2019
 @author: farismismar
 """
 
@@ -30,7 +30,7 @@ from numpy import linalg as LA
 class radio_environment:
     '''    
         Observation: 
-            Type: Box(6 or 8)
+            Type: Box(6)
             Num Observation                                    Min      Max
             0   User1 server X                                 -r       r
             1   User1 server Y                                 -r       r
@@ -38,57 +38,45 @@ class radio_environment:
             3   User2 server Y                                 -r       r
             4   Serving BS Power                               5        40W
             5   Neighbor BS power                              5        40W
-            6   BF codebook index for Serving                  0        M-1
-            7   BF codebook index for Neighbor                 0        M-1
             
         Actions:
-            Type: Discrete(8 or 10)
+            Type: Discrete(8)
             Num	Action
             0	Power up by 1 dB
-            1   Power down by 1 dB
-            2   Power neighbor down by 1 dB
-            3   Power neighbor up by 1 dB
-            4   Step up the index in codebook for Serving
-            5   Step up the index in codebook for Neighbor
+            1	Power up by 3 dB
+            2   Power down by 3 dB
+            3   Power down by 1 dB
+            4   Power neighbor down by 1 dB
+            5   Power neighbor down by 3 dB
+            6   Power neighbor up by 1 dB
+            7   Power neighbor up by 3 dB
 
             
     '''     
     def __init__(self, seed):
-        self.M_ULA = 4
-                
-        self.cell_radius = 150 # in meters.
+        self.cell_radius = 350 # in meters.
         self.inter_site_distance = 3 * self.cell_radius / 2.
         self.num_users = 30 # number of users.
-
+        self.sinr_target = 0 # in dB
         self.min_sinr = -3 # in dB
-        self.sinr_target = 20 + 10*np.log10(self.M_ULA) # in dB.
+        self.max_sinr = 15 # in dB
         self.max_tx_power = 40 # in Watts
         self.max_tx_power_interference = 40 # in Watts
-        self.f_c = 28e9 # Hz
+        self.f_c = 2.1e9 # Hz
         self.G_ant_no_beamforming = 11 # dBi
-        self.prob_LOS = 0.8 # Probability of LOS transmission
+        self.prob_LOS = 0.9 # Probability of LOS transmission
 
-        self.num_actions = 6
-
-        self.step_count = 0 # which step
-
-        self.power_changed1 = False # did the BS power legitimally change?
-        self.power_changed2 = False
-        self.bf_changed1 = False # did the BS power legitimally change?
-        self.bf_changed2 = False
-
-        
-        # Flags..  BF first, then PC next.        
-        self.periodicity = 2 # one BF change gives you periodicity PC commands.
+        self.num_actions = 8  
         
         # Where are the base stations?
         self.x_bs_1, self.y_bs_1 = 0, 0
         self.x_bs_2, self.y_bs_2 = self.inter_site_distance, 0
         
         # for Beamforming
-        self.use_beamforming = True
+        self.use_beamforming = False
+        self.M_ULA = 1
         self.k_oversample = 1 # oversampling factor
-        self.Np = 4 # from 3 to 5 for mmWave
+        self.Np = 15
         self.F = np.zeros([self.M_ULA, self.k_oversample*self.M_ULA], dtype=complex)
         self.theta_n = math.pi * np.arange(start=0., stop=1., step=1./(self.k_oversample*self.M_ULA))
         # Beamforming codebook F
@@ -108,9 +96,8 @@ class radio_environment:
             self.inter_site_distance-self.cell_radius,
             -self.cell_radius,
             1,
-            1,
-            0,
-            0])
+            1
+            ])
 
         bounds_upper = np.array([
             self.cell_radius,
@@ -118,9 +105,8 @@ class radio_environment:
             self.inter_site_distance+self.cell_radius,
             self.cell_radius,
             self.max_tx_power,
-            self.max_tx_power_interference,
-            self.k_oversample*self.M_ULA - 1,
-            self.k_oversample*self.M_ULA - 1])
+            self.max_tx_power_interference
+            ])
 
         self.action_space = spaces.Discrete(self.num_actions) # action size is here
         self.observation_space = spaces.Box(bounds_lower, bounds_upper, dtype=np.float32) # spaces.Discrete(2) # state size is here 
@@ -147,97 +133,50 @@ class radio_environment:
                       self.np_random.uniform(low=self.inter_site_distance-self.cell_radius, high=self.inter_site_distance+self.cell_radius),
                       self.np_random.uniform(low=-self.cell_radius, high=self.cell_radius),
                       self.np_random.uniform(low=1, high=self.max_tx_power/2),
-                      self.np_random.uniform(low=1, high=self.max_tx_power_interference/2),
-                      self.f_n_bs1,
-                      self.f_n_bs2
+                      self.np_random.uniform(low=1, high=self.max_tx_power_interference/2)
                       ]
         
 #        self.steps_beyond_done = None
-
         
-        self.power_changed1 = False
-        self.power_changed2 = False
-        self.bf_changed1 = False 
-        self.bf_changed2 = False
-        
-        self.step_count = 0
 
         return np.array(self.state)
     
     def step(self, action):
-       # assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
-
+#        assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
         state = self.state
         reward = 0
-        x_ue_1, y_ue_1, x_ue_2, y_ue_2, pt_serving, pt_interferer, f_n_bs1, f_n_bs2 = state
+        x_ue_1, y_ue_1, x_ue_2, y_ue_2, pt_serving, pt_interferer = state
 
         # based on the action make your call
         #if (action == 0):
              # Do nothing
           #   reward = 0
-        '''
         if (action == 0):
             pt_serving *= 10**(1/10.)
             reward += 1
         elif (action == 1):
-            pt_serving *= 10**(3/10.)
-            reward += 3
-        elif (action == 2):
-            pt_serving *= 10**(-3/10.)
-            reward += 3
-        elif (action == 3):
             pt_serving *= 10**(-1/10.)
             reward += 3
-        elif (action == 4):
+        elif (action == 2):
             pt_interferer *= 10**(-1/10.)
-            reward += 1
-        elif (action == 5):
-            pt_interferer *= 10**(-3/10.)
-            reward += 1
-        elif (action == 6):
+            reward += 3
+        elif (action == 3):
             pt_interferer *= 10**(1/10.)
             reward += 1
+        elif (action == 4):
+            pt_serving *= 10**(3/10.)
+            reward += 1
+        elif (action == 5):
+            pt_serving *= 10**(-3/10.)
+            reward += 3
+        elif (action == 6):
+            pt_interferer *= 10**(-3/10.)
+            reward += 3
         elif (action == 7):
             pt_interferer *= 10**(3/10.)
             reward += 1
-        elif (action == 8):
-            f_n_bs1 = (f_n_bs1 + 1) % self.M_ULA
-            reward += 5
-        elif (action == 9):
-            f_n_bs2 = (f_n_bs2 + 1) % self.M_ULA
-            reward += 5
-        '''
-
-        # only once a period, perform BF
-
-        self.step_count += 1
-        if (action == 0):
-            pt_serving *= 10**(1/10.)
-            self.power_changed1 = True
-            reward += self.step_count % self.periodicity
-        elif (action == 1):
-            pt_serving *= 10**(-1/10.)
-            self.power_changed1 = True
-            reward += self.step_count % self.periodicity
-        elif (action == 2):
-            pt_interferer *= 10**(-1/10.)
-            self.power_changed2 = True
-            reward += self.step_count % self.periodicity
-        if (action == 3):
-            pt_interferer *= 10**(1/10.)
-            self.power_changed2 = True
-            reward += self.step_count % self.periodicity
-        if (action == 4):
-            f_n_bs1 = (f_n_bs1 + 1) % self.k_oversample*self.M_ULA
-            reward += 15 - (self.step_count % self.periodicity) # periodicity should not exceed 10
-            self.bf_changed1 = True
-        if (action == 5):
-            f_n_bs2 = (f_n_bs2 + 1) % self.k_oversample*self.M_ULA
-            reward += 15 - (self.step_count % self.periodicity)
-            self.bf_changed2 = True
-        if (action == -1):
-            reward += 0
-            # do nothing, this is for optimal bf.
+        elif (action == -1):
+            reward += 0 # do nothing.. this is for FPA.
             
         if (action > self.num_actions - 1):
             print('WARNING: Invalid action played!')
@@ -263,14 +202,14 @@ class radio_environment:
         # Move UE 2
         x_ue_2 += dx_2
         y_ue_2 += dy_2
-        
-        # Update the beamforming codebook index
-        self.f_n_bs1 = f_n_bs1
-        self.f_n_bs2 = f_n_bs2
-                
+    
         received_power, interference_power, received_sinr = self._compute_rf(x_ue_1, y_ue_1, pt_serving, pt_interferer, is_ue_2=False)
         received_power_ue2, interference_power_ue2, received_ue2_sinr = self._compute_rf(x_ue_2, y_ue_2, pt_serving, pt_interferer, is_ue_2=True)
-            
+        
+        # Now provide an SINR gain based on the code rate...         
+        received_sinr = self.effective_sinr(received_sinr)
+        received_ue2_sinr = self.effective_sinr(received_ue2_sinr)
+
         # keep track of quantities...
         self.received_sinr_dB = received_sinr 
         self.received_ue2_sinr_dB = received_ue2_sinr
@@ -278,30 +217,25 @@ class radio_environment:
         self.interfering_transmit_power_dBm = 10*np.log10(pt_interferer*1e3)
 
         # Did we find a FEASIBLE NON-DEGENERATE solution?
-        done = (pt_serving <= self.max_tx_power) and (pt_serving >= 0) and (pt_interferer <= self.max_tx_power_interference) and (pt_interferer >= 0) and \
-                (received_sinr >= self.min_sinr) and (received_ue2_sinr >= self.min_sinr) and (self.power_changed1 and self.power_changed2) and (self.bf_changed1 and self.bf_changed2) and (received_sinr >= self.sinr_target) and (received_ue2_sinr >= self.sinr_target)
+        done = (received_sinr >= self.sinr_target) and (pt_serving <= self.max_tx_power) and (pt_serving >= 0) and (pt_interferer <= self.max_tx_power_interference) and (pt_interferer >= 0) and (received_ue2_sinr >= self.sinr_target) \
+        		and  (received_sinr <= self.max_sinr) and (received_ue2_sinr <= self.max_sinr) 
                 
         abort = (pt_serving > self.max_tx_power) or (pt_interferer > self.max_tx_power_interference) or (received_sinr < self.min_sinr) or (received_ue2_sinr < self.min_sinr) \
-            or (received_sinr > 50 + self.sinr_target) or (received_ue2_sinr > 50 + self.sinr_target) # consider x dB above target is too high.
+                or (received_sinr > self.max_sinr) or (received_ue2_sinr > self.max_sinr) or (received_sinr < self.sinr_target) or (received_ue2_sinr < self.sinr_target) \
+                or (np.isnan(self.received_sinr_dB)) or (np.isnan(self.received_ue2_sinr_dB)) 
                 
 #        print('{:.2f} dB | {:.2f} dB | {:.2f} W | {:.2f} W '.format(received_sinr, received_ue2_sinr, pt_serving, pt_interferer), end='')
 #        print('Done: {}'.format(done))
 #        print('UE moved to ({0:0.3f},{1:0.3f}) and their received SINR became {2:0.3f} dB.'.format(x,y,received_sinr))
         
         # Update the state.
-        self.state = (x_ue_1, y_ue_1, x_ue_2, y_ue_2, pt_serving, pt_interferer, f_n_bs1, f_n_bs2)
+        self.state = (x_ue_1, y_ue_1, x_ue_2, y_ue_2, pt_serving, pt_interferer) #, f_n_bs1, f_n_bs2)
      
-        #if done == True:
-        #    abort = False
-        #    reward += self.reward_max
-        #elif abort:
-        #    reward = self.reward_min
-
-        if abort == True:
-            done = False
-            reward = self.reward_min
-        elif done:
+        if done == True:
+            abort = False
             reward += self.reward_max
+        elif abort:
+            reward = self.reward_min
 
 #        print(done, (received_sinr >= self.sinr_target) , (pt_serving <= self.max_tx_power) , (pt_serving >= 0) , \
 #                (pt_interferer <= self.max_tx_power_interference) , (pt_interferer >= 0) , (received_ue2_sinr >= self.sinr_target))
@@ -378,6 +312,7 @@ class radio_environment:
         T = 290 # Kelvins
         B = 15000 # Hz
         k_Boltzmann = 1.38e-23
+        eps = 1e-20
         
         noise_power = k_Boltzmann*T*B # this is in Watts
 
@@ -418,7 +353,7 @@ class radio_environment:
                 received_power = pt_bs2 * LA.norm(h_1, ord=2) ** 2
                 interference_power = pt_bs1 * LA.norm(h_2, ord=2) ** 2
                 
-        interference_plus_noise_power = interference_power + noise_power
+        interference_plus_noise_power = interference_power + noise_power + eps
         received_sinr = 10*np.log10(received_power / interference_plus_noise_power)
 
         return [received_power, interference_power, received_sinr]
@@ -462,3 +397,14 @@ class radio_environment:
         L = L_cost231
         
         return L # in dB
+
+    def effective_sinr(self, sinr_value):
+        # derive a code rate based on the sinr_value in dB
+        code_rate = (sinr_value - self.min_sinr) / (self.max_sinr - self.min_sinr)
+        
+        if code_rate != 0:
+            code_rate = -10 * np.log10(code_rate)
+        
+        code_rate = min(code_rate, 3) # should not exceed 3 dB 
+                   
+        return code_rate + sinr_value

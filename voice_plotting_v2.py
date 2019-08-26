@@ -60,6 +60,7 @@ def generate_ccdf(data1, data2, data3):
     labels = ['Tabular $Q$-learning', 'Deep $Q$-learning (proposed)', 'Fixed Power Allocation (FPA)']
     ax.set_xlabel('$\gamma$')
     ax.set_ylabel('$1 - F_\Gamma(\gamma)$')        
+    ax.set_ylim([0,1])
     ax.legend(labels, loc="best")
     plt.grid(True)
     plt.tight_layout()
@@ -106,6 +107,7 @@ def read_output(filename):
     df = pd.read_csv(filename)
     df = df.T
     df = df.reset_index()
+    df.drop(df.index[-1], axis=0, inplace=True)
     df = df.astype(float)
 
     return list(df.iloc[:,0])

@@ -36,21 +36,17 @@ class DQNLearningAgent:
         self.memory = deque(maxlen=2000)
         self.gamma = discount_factor    # discount rate
         self.exploration_rate = exploration_rate / exploration_decay_rate # exploration rate
-        self.exploration_rate_min = 0.10
+        self.exploration_rate_min = 0.15
         self.exploration_rate_decay = exploration_decay_rate
         self.learning_rate = 0.01 # this is eta for SGD
 
-        self._state_size = 8 # unchange
-        self._action_size = 6
+        self._state_size = 6 # unchange
+        self._action_size = 8 # 10 mmWave and 8 for voice.  check the actions in the environment
                   
         # Add a few lines to caputre the seed for reproducibility.
         self.seed = seed
         random.seed(self.seed)
         np.random.seed(self.seed)
-        
-        gpu_available = tf.test.is_gpu_available()
-        if (gpu_available == False):
-            print('WARNING: No GPU available.  Will continue with CPU.')
         
         self.model = self._build_model()
                 
