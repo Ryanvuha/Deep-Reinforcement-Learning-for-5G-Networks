@@ -212,13 +212,6 @@ df_final = df_final_.values
 df_final = df_final.T
 sinr_4, tx_power_4, sinr_8, tx_power_8, sinr_16, tx_power_16, sinr_32, tx_power_32, sinr_64, tx_power_64 = df_final 
 plot_ccdf(df_final_[['sinr_4', 'sinr_16', 'sinr_64']])
-##############################
-
-# 1) SINR and transmit power vs M
-df_final_opt_ = compute_distributions(optimal=True)
-df_final_opt = df_final_opt_.values
-df_final_opt = df_final_opt.T
-sinr_4_optimal, tx_power_4_optimal, sinr_8_optimal, tx_power_8_optimal, sinr_16_optimal, tx_power_16_optimal, sinr_32_optimal, tx_power_32_optimal, sinr_64_optimal, tx_power_64_optimal = df_final_opt 
 
 tx_power_4_agg = 10*np.log10(10 ** (np.nanmax(tx_power_4)/10.))
 tx_power_8_agg = 10*np.log10(10 ** (np.nanmax(tx_power_8)/10.))
@@ -232,9 +225,16 @@ sinr_avg_16 = 10*np.log10(10 ** (np.nanmax(sinr_16)/10.))
 sinr_avg_32 = 10*np.log10(10 ** (np.nanmax(sinr_32)/10.))
 sinr_avg_64 = 10*np.log10(10 ** (np.nanmax(sinr_64)/10.))
 
+##############################
+
+# 1) SINR and transmit power vs M
+df_final_opt_ = compute_distributions(optimal=True)
+df_final_opt = df_final_opt_.values
+df_final_opt = df_final_opt.T
+sinr_4_optimal, tx_power_4_optimal, sinr_8_optimal, tx_power_8_optimal, sinr_16_optimal, tx_power_16_optimal, sinr_32_optimal, tx_power_32_optimal, sinr_64_optimal, tx_power_64_optimal = df_final_opt 
+
 ##################################################################################################################
 # 2) Convergence vs Antenna Size
-# Obtained from the percentile of convergence.
 X = [4,8,16,32,64]
 Y = pd.DataFrame()
 
