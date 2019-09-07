@@ -19,8 +19,8 @@ import matplotlib2tikz
 
 os.chdir('/Users/farismismar/Desktop/deep')
 
-MAX_EPISODES_DEEP = 1200
-MIN_EPISODES_DEEP = 750
+MAX_EPISODES_DEEP = 1050
+MIN_EPISODES_DEEP = 500
 
 def sum_rate(sinr):
     output = []
@@ -31,7 +31,7 @@ def sum_rate(sinr):
 
     return output    
 
-def plot_ccdf(T):
+def plot_ccdf(T, labels, filename='ccdf'):
     fig = plt.figure(figsize=(10.24, 7.68))
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
@@ -41,8 +41,6 @@ def plot_ccdf(T):
         r'\usepackage{amsmath}',
         r'\usepackage{amssymb}']   
     
-    labels = T.columns
-
     num_bins =  20
     i = 0
     for data in T:
@@ -50,20 +48,20 @@ def plot_ccdf(T):
 
         counts, bin_edges = np.histogram(data_, bins=num_bins, density=True)
         ccdf = 1 - np.cumsum(counts) / counts.sum()
+        ccdf = np.insert(ccdf, 0, 1)
+        bin_edges = np.insert(bin_edges[1:], 0, bin_edges[0] - (bin_edges[2] - bin_edges[1]))
         lw = 1 + i
         ax = fig.gca()
         style = '-'
-        ax.plot(bin_edges[1:], ccdf, style, linewidth=lw)
-
-    labels = [r'$M_\text{ULA} = 4$', r'$M_\text{ULA} = 8$', r'$M_\text{ULA} = 16$', r'$M_\text{ULA} = 32$', r'$M_\text{ULA} = 64$']    
+        ax.plot(bin_edges, ccdf, style, linewidth=lw)
 
     plt.grid(True)
     plt.tight_layout()
     ax.set_xlabel('$\gamma$')
     ax.set_ylabel('$1 - F_\Gamma(\gamma)$')        
     ax.legend(labels, loc="lower left")
-    plt.savefig('ccdf.pdf', format='pdf')
-    matplotlib2tikz.save('figures/ccdf.tikz')
+    plt.savefig('{}.pdf'.format(filename), format='pdf')
+    matplotlib2tikz.save('figures/{}.tikz'.format(filename))
     plt.close(fig)    
     
 def plot_primary(X,Y, xlabel, ylabel, ymin=0, ymax=MAX_EPISODES_DEEP, filename='plot.pdf'):
@@ -211,19 +209,35 @@ df_final_ = compute_distributions()
 df_final = df_final_.values
 df_final = df_final.T
 sinr_4, tx_power_4, sinr_8, tx_power_8, sinr_16, tx_power_16, sinr_32, tx_power_32, sinr_64, tx_power_64 = df_final 
-plot_ccdf(df_final_[['sinr_4', 'sinr_16', 'sinr_64']])
 
-tx_power_4_agg = 10*np.log10(10 ** (np.nanmax(tx_power_4)/10.))
-tx_power_8_agg = 10*np.log10(10 ** (np.nanmax(tx_power_8)/10.))
-tx_power_16_agg = 10*np.log10(10 ** (np.nanmax(tx_power_16)/10.))
-tx_power_32_agg = 10*np.log10(10 ** (np.nanmax(tx_power_32)/10.))
-tx_power_64_agg = 10*np.log10(10 ** (np.nanmax(tx_power_64)/10.))
+sinr_4= sinr_4[~np.isnan(sinr_4)]
+tx_power_4= tx_power_4[~np.isnan(tx_power_4)]
 
-sinr_avg_4 = 10*np.log10(10 ** (np.nanmax(sinr_4)/10.))
-sinr_avg_8 = 10*np.log10(10 ** (np.nanmax(sinr_8)/10.))
-sinr_avg_16 = 10*np.log10(10 ** (np.nanmax(sinr_16)/10.))
-sinr_avg_32 = 10*np.log10(10 ** (np.nanmax(sinr_32)/10.))
-sinr_avg_64 = 10*np.log10(10 ** (np.nanmax(sinr_64)/10.))
+sinr_8= sinr_8[~np.isnan(sinr_8)]
+tx_power_8= tx_power_8[~np.isnan(tx_power_8)]
+
+sinr_16= sinr_16[~np.isnan(sinr_16)]
+tx_power_16= tx_power_16[~np.isnan(tx_power_16)]
+
+sinr_32= sinr_32[~np.isnan(sinr_32)]
+tx_power_32= tx_power_32[~np.isnan(tx_power_32)]
+
+sinr_64= sinr_64[~np.isnan(sinr_64)]
+tx_power_64= tx_power_64[~np.isnan(tx_power_64)]
+
+plot_ccdf(df_final_[['sinr_4', 'sinr_8', 'sinr_16', 'sinr_32', 'sinr_64']], [r'$M_\text{ULA} = 4$', r'$M_\text{ULA} = 8$', r'$M_\text{ULA} = 16$', r'$M_\text{ULA} = 32$', r'$M_\text{ULA} = 64$'])
+
+tx_power_4_agg = 10*np.log10(10 ** (np.max(tx_power_4)/10.))
+tx_power_8_agg = 10*np.log10(10 ** (np.max(tx_power_8)/10.))
+tx_power_16_agg = 10*np.log10(10 ** (np.max(tx_power_16)/10.))
+tx_power_32_agg = 10*np.log10(10 ** (np.max(tx_power_32)/10.))
+tx_power_64_agg = 10*np.log10(10 ** (np.max(tx_power_64)/10.))
+
+sinr_avg_4 = 10*np.log10(10 ** (np.max(sinr_4)/10.))
+sinr_avg_8 = 10*np.log10(10 ** (np.max(sinr_8)/10.))
+sinr_avg_16 = 10*np.log10(10 ** (np.max(sinr_16)/10.))
+sinr_avg_32 = 10*np.log10(10 ** (np.max(sinr_32)/10.))
+sinr_avg_64 = 10*np.log10(10 ** (np.max(sinr_64)/10.))
 
 ##############################
 
