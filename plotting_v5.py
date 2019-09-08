@@ -227,7 +227,7 @@ tx_power_32= tx_power_32[~np.isnan(tx_power_32)]
 sinr_64= sinr_64[~np.isnan(sinr_64)]
 tx_power_64= tx_power_64[~np.isnan(tx_power_64)]
 
-plot_ccdf(df_final_[['sinr_4', 'sinr_8', 'sinr_16', 'sinr_32', 'sinr_64']], [r'$M_\text{ULA} = 4$', r'$M_\text{ULA} = 8$', r'$M_\text{ULA} = 16$', r'$M_\text{ULA} = 32$', r'$M_\text{ULA} = 64$'])
+plot_ccdf(df_final_[['sinr_4', 'sinr_8', 'sinr_16', 'sinr_32', 'sinr_64']], [r'$M = 4$', r'$M  = 8$', r'$M = 16$', r'$M = 32$', r'$M = 64$'])
 q = 100
 
 tx_power_4_agg = 10*np.log10(10 ** (np.nanpercentile(tx_power_4, q)/10.))
