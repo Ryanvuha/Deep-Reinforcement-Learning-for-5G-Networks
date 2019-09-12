@@ -422,7 +422,7 @@ def plot_actions(actions, max_timesteps_per_episode, episode_index, max_episodes
 ########################################################################################
 
 radio_frame = 10
-seeds = np.arange(3000).astype(int).tolist() 
+seeds = np.arange(500).astype(int).tolist() 
 #seeds = [0] # for optimal
 
 for seed in seeds:
