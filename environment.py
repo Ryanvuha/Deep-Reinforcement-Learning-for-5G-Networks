@@ -43,7 +43,7 @@ class radio_environment:
                        
     '''     
     def __init__(self, seed):
-        self.M_ULA = 64
+        self.M_ULA = 4
                 
         self.cell_radius = 150 # in meters.
         self.inter_site_distance = 3 * self.cell_radius / 2.
