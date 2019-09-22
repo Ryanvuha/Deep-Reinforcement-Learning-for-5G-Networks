@@ -8,4 +8,4 @@
 
 4- Copy parse_new.py to every one of these figures_M=k folders.  Then run it from the shell in from these folders: `./parse_new.py`.  This will generate 4 files in each of these folders.
 
-5- Make sure a folder 'figures' is created.  Now run `plotting_v5.py` and you should be good.
+5- Make sure a folder 'figures' is created.  Change line 20 in `plotting_v5.py` to reflect the path where your 'figures' folder is.  Now run `plotting_v5.py` and you should be good.
