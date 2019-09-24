@@ -1,4 +1,5 @@
 # Deep-Reinforcement-Learning-for-5G-Networks
+## Instructions for the data bearer plots.
 
 1- Check the value of self.M_ULA in `environment.py`.  Then create a subfolder with that value and run the `main.py` file.  For example `figures_M=4` if `self.M_ULA = 4`.  Move the measurement_x_seedy.txt files to that folder.
 
