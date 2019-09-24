@@ -33,13 +33,6 @@ def sum_rate(sinr):
 
 def plot_ccdf(T, labels, filename='ccdf'):
     fig = plt.figure(figsize=(10.24, 7.68))
-    plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
-    matplotlib.rcParams['text.usetex'] = True
-    matplotlib.rcParams['font.size'] = 20
-    matplotlib.rcParams['text.latex.preamble'] = [
-        r'\usepackage{amsmath}',
-        r'\usepackage{amssymb}']   
     
     num_bins = 10
     i = 0
@@ -66,13 +59,6 @@ def plot_ccdf(T, labels, filename='ccdf'):
     
 def plot_primary(X,Y, xlabel, ylabel, ymin=0, ymax=MAX_EPISODES_DEEP, filename='plot.pdf'):
     fig = plt.figure(figsize=(10.24,7.68))
-    plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
-    matplotlib.rcParams['text.usetex'] = True
-    matplotlib.rcParams['font.size'] = 20
-    matplotlib.rcParams['text.latex.preamble'] = [
-        r'\usepackage{amsmath}',
-        r'\usepackage{amssymb}']
     
     plt.xlabel(xlabel)
     
@@ -138,13 +124,6 @@ def compute_distributions(optimal=False):
 ################################################################################################################################################################
 def plot_secondary(X,Y1, Y2, Y3, Y4, xlabel, y1label, y2label, y1max, y2max, filename='plot.pdf'):
     fig = plt.figure(figsize=(10.24,7.68))
-    plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
-    matplotlib.rcParams['text.usetex'] = True
-    matplotlib.rcParams['font.size'] = 20
-    matplotlib.rcParams['text.latex.preamble'] = [
-        r'\usepackage{amsmath}',
-        r'\usepackage{amssymb}']
     
     #plt.title(title)
     plt.xlabel(xlabel)
@@ -177,14 +156,6 @@ def plot_secondary(X,Y1, Y2, Y3, Y4, xlabel, y1label, y2label, y1max, y2max, fil
     
 def plot_primary_two(X, Y1, Y2, xlabel, ylabel, filename='plot.pdf'):
     fig = plt.figure(figsize=(10.24,7.68))
-    plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
-    matplotlib.rcParams['text.usetex'] = True
-    matplotlib.rcParams['font.size'] = 20
-    matplotlib.rcParams['text.latex.preamble'] = [
-        r'\usepackage{amsmath}',
-        r'\usepackage{amssymb}']
-    
     plt.xlabel(xlabel)
     
     ax = fig.gca()
