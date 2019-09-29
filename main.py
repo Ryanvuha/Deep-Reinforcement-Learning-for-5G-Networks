@@ -25,7 +25,7 @@ from environment import radio_environment
 from DQNLearningAgent import DQNLearningAgent as QLearner # Deep with GPU and CPU fallback
 
 MAX_EPISODES_DEEP = 1500
-MAX_EPISODES_OPTIMAL = 1000
+MAX_EPISODES_OPTIMAL = 500
 
 # Succ: 
 
@@ -101,7 +101,7 @@ def run_agent_optimal(env, plotting=True):
                                                                                       pt_serving, pt_interferer))
 
             abort = (pt_serving > env.max_tx_power) or (pt_interferer > env.max_tx_power_interference) or (received_sinr < env.min_sinr) or (received_ue2_sinr < env.min_sinr) \
-                or (received_sinr > 50 + env.sinr_target) or (received_ue2_sinr > 50 + env.sinr_target) or (received_sinr < 10) or (received_ue2_sinr < 10) or (max_sinr < 0) # an extra condition
+                or (received_sinr > 70) or (received_ue2_sinr > 70) or (received_sinr < 10) or (received_ue2_sinr < 10) or (max_sinr < 0) # an extra condition
 
             if abort:
                 break
@@ -194,11 +194,6 @@ def run_agent_deep(env, plotting=True):
                       
             episode_loss.append(loss)
             episode_q.append(q)
-            
-            # If the episode has ended prematurely, penalize the agent by taking away the winning reward.
-  #          if done and timestep_index < max_timesteps_per_episode - 1:
-  #              reward -= env.reward_max
- #               abort = True
 
             # make next_state the new current state for the next frame.
             observation = next_observation
@@ -261,8 +256,7 @@ def run_agent_deep(env, plotting=True):
         #        print('Interfering BS transmit power progress')
         #        print(interfering_tx_power_progress)
                         
-# Note.. remove the break on line 199
-# for looping against all episodes
+
         
             # Plot the episode...
             if (plotting and successful): 
@@ -279,7 +273,7 @@ def run_agent_deep(env, plotting=True):
     print(optimal)
                     
     # Store all values in files
-    filename = 'figures/optimal.txt'
+    filename = 'figures/optimal_{}.txt'.format(seed)
     file = open(filename, 'w')
     file.write(optimal)    
     file.close()
@@ -422,8 +416,8 @@ def plot_actions(actions, max_timesteps_per_episode, episode_index, max_episodes
 ########################################################################################
 
 radio_frame = 10
-seeds = np.arange(500).astype(int).tolist() 
-#seeds = [0] # for optimal
+#seeds = np.arange(1200).astype(int).tolist() 
+seeds = [255] # for optimal: max reward [4,8,16,32,64] = [408, 1160, 813, 631, 945 ]  for least 4,8,16,32,64 = [255, 949, 761, 239|781, 1151]
 
 for seed in seeds:
     print('Now running seed: {}'.format(seed))
@@ -432,11 +426,11 @@ for seed in seeds:
  
     env = radio_environment(seed=seed)
 
-#    run_agent_optimal(env)
+    run_agent_optimal(env)
 
-    agent = QLearner(seed=seed) # only for the deep
-    run_agent_deep(env)
+#    agent = QLearner(seed=seed) # only for the deep
+#    run_agent_deep(env)
 #    K.clear_session() # free up GPU memory
-    del agent  
+ #   del agent  
 
 ########################################################################################
