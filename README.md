@@ -12,3 +12,6 @@
 5- In `main.py` uncomment lines 426 and 435.  Change the seed to reflect the seed of the desired convergence reward. Comment 437 and 440.  This now allows the optimal algorithm to run.  Change `self.M_ULA` as in step 2 above.  Store results to the folder 'figures M=k optimal' where k = 4, 8, ..., 64.  When these are created, you still need to run parse_new.py in each one of these folders similar to step 4 above.
 
 6- Make sure a folder 'figures' is created.  Change line 20 in `plotting_v6.py` to reflect the path where your 'figures' folder is.  Now run `plotting_v6.py` and you should be good.
+
+## Disclaimer:
+Due to the various library version dependencies and the reproducibility issues with TensorFlow 1.8 on GPU, I cannot guarantee that the output you would get running this code would match my outputs.
